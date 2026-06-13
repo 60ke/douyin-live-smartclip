@@ -1,0 +1,608 @@
+[
+  {
+    "topic": "广告公司养人成本高不敢接单？AI智能体一站式解决",
+    "title": "广告公司养人成本高不敢接单？AI智能体一站式解决",
+    "start_time": "00:00:00.050",
+    "end_time": "00:02:30.620",
+    "start_seconds": 0.05,
+    "end_seconds": 150.62,
+    "duration": 150.035,
+    "score": 0.906,
+    "reason": "清晰阐述了广告公司养人成本高、不敢接单等痛点，并引出智能体如何一站式解决，内容完整，有共鸣价值。",
+    "structure_score": 0.92,
+    "structure_reason": "开头（1-9）提出痛点，主体（10-38）介绍智能体解决方案，结尾（39-67）对比其他AI并总结优势，结构完整。",
+    "hook": "",
+    "start_subtitle_index": 1,
+    "end_subtitle_index": 67,
+    "parts": [
+      {
+        "start": 0.05,
+        "end": 16.77,
+        "start_subtitle_index": 1,
+        "end_subtitle_index": 9
+      },
+      {
+        "start": 17.07,
+        "end": 82.755,
+        "start_subtitle_index": 10,
+        "end_subtitle_index": 38
+      },
+      {
+        "start": 82.99,
+        "end": 150.62,
+        "start_subtitle_index": 39,
+        "end_subtitle_index": 67
+      }
+    ],
+    "validation": {
+      "duration_status": "normal",
+      "content_unit_type": "pain_point_solution",
+      "noise_density": "",
+      "screen_dependency": "",
+      "first_sentence": "多的情况下，你的成本比较高，",
+      "last_sentence": "这是我们来帮大家解决的这些问题啊，",
+      "standalone_score": "",
+      "split_pair": "",
+      "overlap_seconds": "",
+      "trim_note": "尝试在 index 38 截断，但后续是补充说明其他AI的对比，属于同一话题的延伸；尝试在 index 50 截断，但后续是总结痛点并引出解决方案，语义不完整；最终选择 index 67，因为该句是总结性收束，且后续进入新功能介绍和互动，是强结束点。",
+      "content_type": "pain_point_solution",
+      "end_boundary_quality": "acceptable",
+      "trim_attempts": "尝试在 index 38 截断，但后续是补充说明其他AI的对比，属于同一话题的延伸；尝试在 index 50 截断，但后续是总结痛点并引出解决方案，语义不完整；最终选择 index 67，因为该句是总结性收束，且后续进入新功能介绍和互动，是强结束点。",
+      "passed": true,
+      "validator": "parts_code_boundary_snap",
+      "part_boundaries": [
+        {
+          "first_sentence": "多的情况下，你的成本比较高，",
+          "last_sentence": "那这样的一个情况下，我肯定进行筛选的。",
+          "end_boundary_quality": "strong"
+        },
+        {
+          "first_sentence": "那现在你去使用我们的这个智能体的情况下，",
+          "last_sentence": "能够解决你各个品类一些问题。",
+          "end_boundary_quality": "strong"
+        },
+        {
+          "first_sentence": "可能之前我去了解其他AI哎，",
+          "last_sentence": "这是我们来帮大家解决的这些问题啊，",
+          "end_boundary_quality": "acceptable"
+        }
+      ]
+    },
+    "output": "/home/qc/lsk/videos/01_广告公司养人成本高不敢接单_AI智能体一站式解决.mp4",
+    "subtitle_output": "/home/qc/lsk/videos/01_广告公司养人成本高不敢接单_AI智能体一站式解决.srt"
+  },
+  {
+    "topic": "水蜜桃改葡萄汁无痕改字演示",
+    "title": "水蜜桃改葡萄汁无痕改字演示",
+    "start_time": "00:03:53.260",
+    "end_time": "00:06:25.195",
+    "start_seconds": 233.26,
+    "end_seconds": 385.195,
+    "duration": 87.365,
+    "score": 0.883,
+    "reason": "直观演示了将水蜜桃改为葡萄汁的无痕改字功能，突出AI在电商精修中的实用性，操作简单，效果明显。",
+    "structure_score": 0.9,
+    "structure_reason": "开头以产品精修引入，中间演示操作过程（选择无痕改字、输入替换文字、点击生成），结尾展示结果并总结AI的便利性，结构完整。",
+    "hook": "",
+    "start_subtitle_index": 102,
+    "end_subtitle_index": 159,
+    "parts": [
+      {
+        "start": 233.26,
+        "end": 289.54,
+        "start_subtitle_index": 102,
+        "end_subtitle_index": 123
+      },
+      {
+        "start": 354.11,
+        "end": 385.195,
+        "start_subtitle_index": 145,
+        "end_subtitle_index": 159
+      }
+    ],
+    "validation": {
+      "duration_status": "normal",
+      "content_unit_type": "feature_demo",
+      "noise_density": "",
+      "screen_dependency": "",
+      "first_sentence": "你像这个这个就是我们刚才做的产产品的一些精修，",
+      "last_sentence": "个问题啊，咱可以自己去试一试啊。",
+      "standalone_score": "",
+      "split_pair": "",
+      "overlap_seconds": "",
+      "trim_note": "尝试在 index 123 截断作为第一部分，但后续有无关内容（擤鼻涕、欢迎新观众等），故跳过；尝试在 index 159 截断，该处为口语完整收束且后续进入新话题，接受。",
+      "content_type": "feature_demo",
+      "end_boundary_quality": "strong",
+      "trim_attempts": "尝试在 index 123 截断作为第一部分，但后续有无关内容（擤鼻涕、欢迎新观众等），故跳过；尝试在 index 159 截断，该处为口语完整收束且后续进入新话题，接受。",
+      "passed": true,
+      "validator": "parts_code_boundary_snap",
+      "part_boundaries": [
+        {
+          "first_sentence": "你像这个这个就是我们刚才做的产产品的一些精修，",
+          "last_sentence": "行吗？",
+          "end_boundary_quality": "strong"
+        },
+        {
+          "first_sentence": "能看到吗？",
+          "last_sentence": "个问题啊，咱可以自己去试一试啊。",
+          "end_boundary_quality": "strong"
+        }
+      ]
+    },
+    "output": "/home/qc/lsk/videos/02_水蜜桃改葡萄汁无痕改字演示.mp4",
+    "subtitle_output": "/home/qc/lsk/videos/02_水蜜桃改葡萄汁无痕改字演示.srt"
+  },
+  {
+    "topic": "AI一键生成IP形象：从选择到三视图展示",
+    "title": "AI一键生成IP形象：从选择到三视图展示",
+    "start_time": "00:26:37.370",
+    "end_time": "00:29:04.955",
+    "start_seconds": 1597.37,
+    "end_seconds": 1744.955,
+    "duration": 147.23,
+    "score": 0.906,
+    "reason": "完整演示了IP形象生成过程：选择行业（甜品店）、输入品牌名称（遇见蛋糕房）、选择拟人类型（产品拟人）、点击生成，并展示了生成后的三视图、logo应用、衍生品等效果，操作简单直观，创意性强。",
+    "structure_score": 0.92,
+    "structure_reason": "开头（641-643）引入IP形象演示意图；主体（644-674）逐步操作生成；结尾（675-701）展示生成结果（logo、参考图、三视图、衍生品），并以总结性评价收束，结构完整。",
+    "hook": "",
+    "start_subtitle_index": 641,
+    "end_subtitle_index": 701,
+    "parts": [
+      {
+        "start": 1597.37,
+        "end": 1679.465,
+        "start_subtitle_index": 641,
+        "end_subtitle_index": 674
+      },
+      {
+        "start": 1679.82,
+        "end": 1744.955,
+        "start_subtitle_index": 675,
+        "end_subtitle_index": 701
+      }
+    ],
+    "validation": {
+      "duration_status": "normal",
+      "content_unit_type": "feature_demo",
+      "noise_density": "",
+      "screen_dependency": "",
+      "first_sentence": "比如说哎我刚刚做了展台的对吧？",
+      "last_sentence": "是比较全面的啊，是比较全面的。",
+      "standalone_score": "",
+      "split_pair": "",
+      "overlap_seconds": "",
+      "trim_note": "尝试在 index 674 截断，但后续 675 开始讲解 logo 和衍生品，属于同一主题的延伸，故纳入。尝试在 index 701 截断，因为 702 开始是总结性邀请和欢迎新观众，属于新互动，语义完整收束。",
+      "content_type": "feature_demo",
+      "end_boundary_quality": "strong",
+      "trim_attempts": "尝试在 index 674 截断，但后续 675 开始讲解 logo 和衍生品，属于同一主题的延伸，故纳入。尝试在 index 701 截断，因为 702 开始是总结性邀请和欢迎新观众，属于新互动，语义完整收束。",
+      "passed": true,
+      "validator": "parts_code_boundary_snap",
+      "part_boundaries": [
+        {
+          "first_sentence": "比如说哎我刚刚做了展台的对吧？",
+          "last_sentence": "右侧就可以生成我们那个效果展示。",
+          "end_boundary_quality": "strong"
+        },
+        {
+          "first_sentence": "那上方呢还有两个，一个是我们的logo图片，",
+          "last_sentence": "是比较全面的啊，是比较全面的。",
+          "end_boundary_quality": "strong"
+        }
+      ]
+    },
+    "output": "/home/qc/lsk/videos/03_AI一键生成IP形象_从选择到三视图展示.mp4",
+    "subtitle_output": "/home/qc/lsk/videos/03_AI一键生成IP形象_从选择到三视图展示.srt"
+  },
+  {
+    "topic": "AI智能体七天免费试用领取教程",
+    "title": "AI智能体七天免费试用领取教程",
+    "start_time": "00:43:59.360",
+    "end_time": "00:44:59.935",
+    "start_seconds": 2639.36,
+    "end_seconds": 2699.935,
+    "duration": 58.6,
+    "score": 0.906,
+    "reason": "详细说明了免费试用的领取步骤：点关注、进粉丝群、看群公告第三行、复制链接浏览器打开，操作清晰，适合作为独立引导片段。",
+    "structure_score": 0.92,
+    "structure_reason": "开头以问题引入，中间逐步讲解操作步骤，结尾重复强调结果，结构完整。",
+    "hook": "",
+    "start_subtitle_index": 1063,
+    "end_subtitle_index": 1082,
+    "parts": [
+      {
+        "start": 2639.36,
+        "end": 2646.205,
+        "start_subtitle_index": 1063,
+        "end_subtitle_index": 1064
+      },
+      {
+        "start": 2648.18,
+        "end": 2699.935,
+        "start_subtitle_index": 1066,
+        "end_subtitle_index": 1082
+      }
+    ],
+    "validation": {
+      "duration_status": "normal",
+      "content_unit_type": "offer_info",
+      "noise_density": "",
+      "screen_dependency": "",
+      "first_sentence": "包括说我们这个试用没有领到老板啊，",
+      "last_sentence": "享受七天的免费试用，享受七天的免费试用",
+      "standalone_score": "",
+      "split_pair": "",
+      "overlap_seconds": "",
+      "trim_note": "尝试在1065截断，但该句是过渡句，与后续步骤紧密相关，故纳入；尝试在1077截断，但该句是步骤中的补充说明，不完整；最终在1082结束，语义完整，后续进入新话题。",
+      "content_type": "offer_info",
+      "end_boundary_quality": "acceptable",
+      "trim_attempts": "尝试在1065截断，但该句是过渡句，与后续步骤紧密相关，故纳入；尝试在1077截断，但该句是步骤中的补充说明，不完整；最终在1082结束，语义完整，后续进入新话题。",
+      "passed": true,
+      "validator": "parts_code_boundary_snap",
+      "part_boundaries": [
+        {
+          "first_sentence": "包括说我们这个试用没有领到老板啊，",
+          "last_sentence": "现在教咱怎么去领取我们AI智能体的七天免费用",
+          "end_boundary_quality": "acceptable"
+        },
+        {
+          "first_sentence": "老友们呃，左上角没点关注的老板啊，",
+          "last_sentence": "享受七天的免费试用，享受七天的免费试用",
+          "end_boundary_quality": "acceptable"
+        }
+      ]
+    },
+    "output": "/home/qc/lsk/videos/04_AI智能体七天免费试用领取教程.mp4",
+    "subtitle_output": "/home/qc/lsk/videos/04_AI智能体七天免费试用领取教程.srt"
+  },
+  {
+    "topic": "无需提示词，一键生成多种风格效果图",
+    "title": "无需提示词，一键生成多种风格效果图",
+    "start_time": "00:55:46.670",
+    "end_time": "01:00:30.265",
+    "start_seconds": 3346.67,
+    "end_seconds": 3630.265,
+    "duration": 284.86,
+    "score": 0.861,
+    "reason": "系统对比了市面上其他AI需要写提示词的痛点，突出本智能体无需提示词、一键生成多种风格、兼具创意与落地性的核心优势，说服力强。",
+    "structure_score": 0.85,
+    "structure_reason": "开头（1331-1334）引出对比主题；主体（1335-1418）详细阐述其他AI需要写提示词的痛点及本智能体的优势；结尾（1419-1445）总结并邀请体验，结构完整。",
+    "hook": "",
+    "start_subtitle_index": 1331,
+    "end_subtitle_index": 1445,
+    "parts": [
+      {
+        "start": 3346.67,
+        "end": 3456.325,
+        "start_subtitle_index": 1331,
+        "end_subtitle_index": 1375
+      },
+      {
+        "start": 3454.84,
+        "end": 3563.09,
+        "start_subtitle_index": 1375,
+        "end_subtitle_index": 1418
+      },
+      {
+        "start": 3563.31,
+        "end": 3630.265,
+        "start_subtitle_index": 1419,
+        "end_subtitle_index": 1445
+      }
+    ],
+    "validation": {
+      "duration_status": "unavoidable_overrun",
+      "content_unit_type": "comparison",
+      "noise_density": "",
+      "screen_dependency": "",
+      "first_sentence": "像咱这个文生图的话，对比市面上其他的AI我",
+      "last_sentence": "以回去试用试用啊。",
+      "standalone_score": "",
+      "split_pair": "",
+      "overlap_seconds": "",
+      "trim_note": "尝试在1374处截断（提示词必须精准），但后续是'那可能还面临第二个问题'，属于同一话题的递进，不能断；尝试在1418处截断（更快捷、更简单、更方便），但后续'而且我们去生成这个效果的话'是补充说明，属于同一话题的延续，不能断；最终在1445处结束，因为后续1446开始进入引导加关注、进粉丝群等转化互动，属于新话题，且1445句是口语完整收束。",
+      "content_type": "comparison",
+      "end_boundary_quality": "strong",
+      "trim_attempts": "尝试在1374处截断（提示词必须精准），但后续是'那可能还面临第二个问题'，属于同一话题的递进，不能断；尝试在1418处截断（更快捷、更简单、更方便），但后续'而且我们去生成这个效果的话'是补充说明，属于同一话题的延续，不能断；最终在1445处结束，因为后续1446开始进入引导加关注、进粉丝群等转化互动，属于新话题，且1445句是口语完整收束。",
+      "passed": true,
+      "validator": "parts_code_boundary_snap",
+      "part_boundaries": [
+        {
+          "auto_policy": "extend_end_to_complete_subtitle",
+          "first_sentence": "像咱这个文生图的话，对比市面上其他的AI我",
+          "last_sentence": "那可能还面临第二个问题。",
+          "end_boundary_quality": "strong"
+        },
+        {
+          "first_sentence": "那可能还面临第二个问题。",
+          "last_sentence": "更简单、更方便。",
+          "end_boundary_quality": "strong"
+        },
+        {
+          "first_sentence": "而且我们去生成这个效果的话，",
+          "last_sentence": "以回去试用试用啊。",
+          "end_boundary_quality": "strong"
+        }
+      ]
+    },
+    "output": "/home/qc/lsk/videos/05_无需提示词_一键生成多种风格效果图.mp4",
+    "subtitle_output": "/home/qc/lsk/videos/05_无需提示词_一键生成多种风格效果图.srt"
+  },
+  {
+    "topic": "AI智能体门头招牌文生图操作演示：无需提示词，一键生成多种风格",
+    "title": "AI智能体门头招牌文生图操作演示：无需提示词，一键生成多种风格",
+    "start_time": "01:03:22.150",
+    "end_time": "01:06:28.445",
+    "start_seconds": 3802.15,
+    "end_seconds": 3988.445,
+    "duration": 185.06,
+    "score": 0.893,
+    "reason": "完整演示了门头招牌文生图的操作流程：输入名称、行业、补充描述，点击生成，并强调了无需提示词的简便性。操作步骤清晰，结尾总结有力，适合独立传播。",
+    "structure_score": 0.9,
+    "structure_reason": "开头（1515-1540）引出门头招牌主题并介绍界面；主体（1541-1566）演示具体操作步骤（输入名称、行业、补充描述、点击生成）；结尾（1567-1586）总结操作简便性，强调无需提示词，收束完整。",
+    "hook": "",
+    "start_subtitle_index": 1515,
+    "end_subtitle_index": 1586,
+    "parts": [
+      {
+        "start": 3802.15,
+        "end": 3873.385,
+        "start_subtitle_index": 1515,
+        "end_subtitle_index": 1540
+      },
+      {
+        "start": 3874.62,
+        "end": 3937.97,
+        "start_subtitle_index": 1541,
+        "end_subtitle_index": 1566
+      },
+      {
+        "start": 3937.97,
+        "end": 3988.445,
+        "start_subtitle_index": 1567,
+        "end_subtitle_index": 1586
+      }
+    ],
+    "validation": {
+      "duration_status": "normal",
+      "content_unit_type": "feature_demo",
+      "noise_density": "",
+      "screen_dependency": "",
+      "first_sentence": "比如说啊家人们你们想要去做这个门头招牌，",
+      "last_sentence": "直接这边直接去生成就可以了。",
+      "standalone_score": "",
+      "split_pair": "",
+      "overlap_seconds": "",
+      "trim_note": "尝试在1566处截断，但后续1567-1586是对操作简便性的总结和强调，属于同一主题的收束，因此纳入。尝试在1586后截断，后续1587开始介绍其他功能（文化墙等），属于新话题，因此以1586为结束。",
+      "content_type": "feature_demo",
+      "end_boundary_quality": "strong",
+      "trim_attempts": "尝试在1566处截断，但后续1567-1586是对操作简便性的总结和强调，属于同一主题的收束，因此纳入。尝试在1586后截断，后续1587开始介绍其他功能（文化墙等），属于新话题，因此以1586为结束。",
+      "passed": true,
+      "validator": "parts_code_boundary_snap",
+      "part_boundaries": [
+        {
+          "first_sentence": "比如说啊家人们你们想要去做这个门头招牌，",
+          "last_sentence": "你可以直接添加添加进去。",
+          "end_boundary_quality": "strong"
+        },
+        {
+          "first_sentence": "那打个比方说啊，咱这边给大家做一个效果图，",
+          "last_sentence": "成，这就OK了，没有什么其他复杂的这个操作啊。",
+          "end_boundary_quality": "strong"
+        },
+        {
+          "first_sentence": "像大家如果说在这边觉得说，",
+          "last_sentence": "直接这边直接去生成就可以了。",
+          "end_boundary_quality": "strong"
+        }
+      ]
+    },
+    "output": "/home/qc/lsk/videos/06_AI智能体门头招牌文生图操作演示_无需提示词_一键生成多种风格.mp4",
+    "subtitle_output": "/home/qc/lsk/videos/06_AI智能体门头招牌文生图操作演示_无需提示词_一键生成多种风格.srt"
+  },
+  {
+    "topic": "文化墙平面转3D：20秒出效果图+施工图，广告公司效率翻倍",
+    "title": "文化墙平面转3D：20秒出效果图+施工图，广告公司效率翻倍",
+    "start_time": "01:26:32.770",
+    "end_time": "01:27:51.475",
+    "start_seconds": 5192.77,
+    "end_seconds": 5271.475,
+    "duration": 78.37,
+    "score": 0.94,
+    "reason": "清晰讲解了文化墙平面转3D的核心功能：20秒生成效果图、同步生成施工图（含材质、尺寸、坐标），解决人工成本高、效率低的问题。开头提问引入，中间场景化描述痛点，结尾总结功能，结构完整。",
+    "structure_score": 0.95,
+    "structure_reason": "开头（2080-2081）以提问引入核心功能；主体（2082-2112）先描述痛点（设计师下班、甲方看不懂矢量图），再展示解决方案（20秒生成效果图、同步施工图），最后强调效率提升和落地价值；结尾（2113）总结功能，自然过渡到下一主题。",
+    "hook": "",
+    "start_subtitle_index": 2080,
+    "end_subtitle_index": 2114,
+    "parts": [
+      {
+        "start": 5192.77,
+        "end": 5196.675,
+        "start_subtitle_index": 2080,
+        "end_subtitle_index": 2081
+      },
+      {
+        "start": 5197.01,
+        "end": 5271.475,
+        "start_subtitle_index": 2082,
+        "end_subtitle_index": 2114
+      }
+    ],
+    "validation": {
+      "duration_status": "normal",
+      "content_unit_type": "feature_demo",
+      "noise_density": "",
+      "screen_dependency": "",
+      "first_sentence": "像咱这个文化墙平面转三d它这个核心功能是干嘛",
+      "last_sentence": "然后像我们的金油优化，这个是干嘛的啊？",
+      "standalone_score": "",
+      "split_pair": "",
+      "overlap_seconds": "",
+      "trim_note": "尝试在2101处截断（'我只需要二十秒'），但后续2102是总结句'首先提高的是咱们的一个工作效率'，属于当前主题的收束，不能截断；尝试在2104处截断（'你也可以去做'），但后续2105开始讲效果图满意后同步生成施工图，属于同一功能演示的延续，不能截断；最终选择在2113处结束，因为2114开始进入新主题'金油优化'，语义完整收束。",
+      "content_type": "feature_demo",
+      "end_boundary_quality": "strong",
+      "trim_attempts": "尝试在2101处截断（'我只需要二十秒'），但后续2102是总结句'首先提高的是咱们的一个工作效率'，属于当前主题的收束，不能截断；尝试在2104处截断（'你也可以去做'），但后续2105开始讲效果图满意后同步生成施工图，属于同一功能演示的延续，不能截断；最终选择在2113处结束，因为2114开始进入新主题'金油优化'，语义完整收束。",
+      "passed": true,
+      "validator": "parts_code_boundary_snap",
+      "part_boundaries": [
+        {
+          "first_sentence": "像咱这个文化墙平面转三d它这个核心功能是干嘛",
+          "last_sentence": "的？",
+          "end_boundary_quality": "strong"
+        },
+        {
+          "auto_policy": "extend_end_to_complete_subtitle",
+          "first_sentence": "我们这个文化墙平面转向体。",
+          "last_sentence": "然后像我们的金油优化，这个是干嘛的啊？",
+          "end_boundary_quality": "strong"
+        }
+      ]
+    },
+    "output": "/home/qc/lsk/videos/07_文化墙平面转3D_20秒出效果图_施工图_广告公司效率翻倍.mp4",
+    "subtitle_output": "/home/qc/lsk/videos/07_文化墙平面转3D_20秒出效果图_施工图_广告公司效率翻倍.srt"
+  },
+  {
+    "topic": "AI智能体景观小品文生图操作演示",
+    "title": "AI智能体景观小品文生图操作演示",
+    "start_time": "01:30:24.660",
+    "end_time": "01:37:02.590",
+    "start_seconds": 5424.66,
+    "end_seconds": 5822.59,
+    "duration": 396.965,
+    "score": 0.906,
+    "reason": "完整演示了景观小品文生图的操作流程，包括选择行业、主题自动生成、无需提示词即可生成多风格效果图，突出全品类和创意性，适合作为功能演示片段。",
+    "structure_score": 0.92,
+    "structure_reason": "开头以生成景观小品引入，主体包含界面介绍、行业选择、主题生成、操作演示，结尾以生成效果图收束，结构完整。",
+    "hook": "",
+    "start_subtitle_index": 2175,
+    "end_subtitle_index": 2332,
+    "parts": [
+      {
+        "start": 5424.66,
+        "end": 5502.965,
+        "start_subtitle_index": 2175,
+        "end_subtitle_index": 2204
+      },
+      {
+        "start": 5503.31,
+        "end": 5591.105,
+        "start_subtitle_index": 2205,
+        "end_subtitle_index": 2240
+      },
+      {
+        "start": 5591.39,
+        "end": 5639.625,
+        "start_subtitle_index": 2241,
+        "end_subtitle_index": 2260
+      },
+      {
+        "start": 5639.96,
+        "end": 5822.59,
+        "start_subtitle_index": 2261,
+        "end_subtitle_index": 2332
+      }
+    ],
+    "validation": {
+      "duration_status": "normal",
+      "content_unit_type": "feature_demo",
+      "noise_density": "",
+      "screen_dependency": "",
+      "first_sentence": "我说给你们生成一个景观，",
+      "last_sentence": "给大家做出来的一个效果表现啊。",
+      "standalone_score": "",
+      "split_pair": "",
+      "overlap_seconds": "",
+      "trim_note": "尝试在 2204 截断，但该处是界面介绍，未完成操作演示；尝试在 2240 截断，但后续有功能补充和操作演示；尝试在 2260 截断，但后续有免费试用引导和更多演示；最终在 2332 结束，因为该句是操作演示的收束，后续进入效果图创意性介绍，属于新话题。",
+      "content_type": "feature_demo",
+      "end_boundary_quality": "strong",
+      "trim_attempts": "尝试在 2204 截断，但该处是界面介绍，未完成操作演示；尝试在 2240 截断，但后续有功能补充和操作演示；尝试在 2260 截断，但后续有免费试用引导和更多演示；最终在 2332 结束，因为该句是操作演示的收束，后续进入效果图创意性介绍，属于新话题。",
+      "passed": true,
+      "validator": "parts_code_boundary_snap",
+      "part_boundaries": [
+        {
+          "first_sentence": "我说给你们生成一个景观，",
+          "last_sentence": "其他的是选填项。",
+          "end_boundary_quality": "strong"
+        },
+        {
+          "first_sentence": "你比如说像我们这边啊，首先你先选择你的行业，",
+          "last_sentence": "你们直接去选择就可以了。",
+          "end_boundary_quality": "strong"
+        },
+        {
+          "first_sentence": "我们这个是什么软件？",
+          "last_sentence": "我们这个AI智能体你们都可以去用。",
+          "end_boundary_quality": "strong"
+        },
+        {
+          "first_sentence": "你如果说你们要是没有用过的话啊，",
+          "last_sentence": "给大家做出来的一个效果表现啊。",
+          "end_boundary_quality": "strong"
+        }
+      ]
+    },
+    "output": "/home/qc/lsk/videos/08_AI智能体景观小品文生图操作演示.mp4",
+    "subtitle_output": "/home/qc/lsk/videos/08_AI智能体景观小品文生图操作演示.srt"
+  },
+  {
+    "topic": "AI智能体后期收费模式：微付费、金币充值、不过期",
+    "title": "AI智能体后期收费模式：微付费、金币充值、不过期",
+    "start_time": "01:50:45.530",
+    "end_time": "01:53:59.040",
+    "start_seconds": 6645.53,
+    "end_seconds": 6839.04,
+    "duration": 132.01,
+    "score": 0.94,
+    "reason": "明确解释了后期收费为微付费（几毛钱一张），按金币扣除，充值灵活，且金币不过期，打消用户顾虑，适合独立传播。",
+    "structure_score": 0.95,
+    "structure_reason": "开头以问题引入收费主题，主体详细说明金币充值方式、价格计算、不过期等，结尾总结收费标准，结构完整。",
+    "hook": "",
+    "start_subtitle_index": 2662,
+    "end_subtitle_index": 2744,
+    "parts": [
+      {
+        "start": 6645.53,
+        "end": 6661.27,
+        "start_subtitle_index": 2662,
+        "end_subtitle_index": 2668
+      },
+      {
+        "start": 6722.77,
+        "end": 6839.04,
+        "start_subtitle_index": 2692,
+        "end_subtitle_index": 2744
+      }
+    ],
+    "validation": {
+      "duration_status": "normal",
+      "content_unit_type": "pricing_info",
+      "noise_density": "",
+      "screen_dependency": "",
+      "first_sentence": "这个体验结结束之后，怎么付费？",
+      "last_sentence": "这个的话是我们的一个后期的一个收费标准啊，",
+      "standalone_score": "",
+      "split_pair": "",
+      "overlap_seconds": "",
+      "trim_note": "尝试在 index 2668 截断，但该句是过渡句，引导到试用流程，不是收费主题的结束；尝试在 index 2686 截断，但后续立即回到收费主题，且 index 2687 是承接句；尝试在 index 2691 截断，但该处是互动要赞，且后续立即回到收费主题；最终选择在 index 2744 截断，因为该句是收费主题的总结句，语义完整，后续进入新的互动引导。",
+      "content_type": "pricing_info",
+      "end_boundary_quality": "acceptable",
+      "trim_attempts": "尝试在 index 2668 截断，但该句是过渡句，引导到试用流程，不是收费主题的结束；尝试在 index 2686 截断，但后续立即回到收费主题，且 index 2687 是承接句；尝试在 index 2691 截断，但该处是互动要赞，且后续立即回到收费主题；最终选择在 index 2744 截断，因为该句是收费主题的总结句，语义完整，后续进入新的互动引导。",
+      "passed": true,
+      "validator": "parts_code_boundary_snap",
+      "part_boundaries": [
+        {
+          "first_sentence": "这个体验结结束之后，怎么付费？",
+          "last_sentence": "我就给你节省到底啊，老板怎么试用啊？",
+          "end_boundary_quality": "strong"
+        },
+        {
+          "first_sentence": "我给你们讲一讲大家比较关注的这个问题。",
+          "last_sentence": "这个的话是我们的一个后期的一个收费标准啊，",
+          "end_boundary_quality": "acceptable"
+        }
+      ]
+    },
+    "output": "/home/qc/lsk/videos/09_AI智能体后期收费模式_微付费_金币充值_不过期.mp4",
+    "subtitle_output": "/home/qc/lsk/videos/09_AI智能体后期收费模式_微付费_金币充值_不过期.srt"
+  }
+]

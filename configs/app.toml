@@ -1,0 +1,45 @@
+[server]
+host = "0.0.0.0"
+port = 8000
+
+[database]
+url = "sqlite+aiosqlite:///./data/liveclip.db"
+
+[storage]
+base_dir = "./data"
+
+[ffmpeg]
+ffmpeg_binary = "ffmpeg"
+ffprobe_binary = "ffprobe"
+default_encoder = "libx264"
+preset = "veryfast"
+crf = 18
+
+[funasr]
+device = "auto"
+model_dir = "./cache/models/funasr"
+
+[llm]
+model = "deepseek-ai/DeepSeek-V4-Flash"
+base_url = "https://api.siliconflow.cn/v1/chat/completions"
+default_profile_name = "default"
+
+[douyin]
+cookie_env = "DOUYIN_COOKIE"
+
+[worker]
+auto_start_with_api = true
+poll_interval_seconds = 5
+max_concurrent_runs = 1
+heartbeat_interval_seconds = 30
+running_timeout_seconds = 300
+shutdown_timeout_seconds = 10
+
+[clip_segment]
+target_segment_seconds = 120.0
+min_segment_seconds = 15.0
+max_segment_seconds = 150.0
+hard_max_segment_seconds = 180.0
+min_score = 0.5
+min_export_segment_seconds = 15.0
+export_high_score_threshold = 0.8

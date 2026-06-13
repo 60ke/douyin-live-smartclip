@@ -1,0 +1,86 @@
+[project]
+name = "liveclip-server"
+version = "0.1.0"
+description = "Douyin live stream recording and AI smart-clipping backend system"
+requires-python = ">=3.11,<3.13"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.34.0",
+    "typer>=0.15.0",
+    "sqlalchemy>=2.0.36",
+    "alembic>=1.14.0",
+    "pydantic>=2.10.0",
+    "pydantic-settings>=2.7.0",
+    "tomli>=2.2.0;python_version<'3.11'",
+    "python-dotenv>=1.0.0",
+    "structlog>=24.4.0",
+    "httpx>=0.28.0",
+    "requests>=2.32.0",
+    "funasr>=1.2.6",
+    "modelscope>=1.20.0",
+    "torch>=2.2.0",
+    "torchaudio>=2.2.0",
+    "streamlink>=6.10.0",
+    "yt-dlp>=2025.1.0",
+    "pycryptodome>=3.20.0",
+    "PyExecJS>=1.5.1",
+    "aiosqlite>=0.20.0",
+    "greenlet>=3.0.0",
+]
+
+[dependency-groups]
+dev = [
+    "mypy>=1.15.0",
+    "pre-commit>=4.2.0",
+    "pytest>=8.3.5",
+    "pytest-asyncio>=0.25.0",
+    "pytest-cov>=6.1.1",
+    "ruff>=0.11.0",
+    "httpx>=0.28.0",
+]
+
+[project.scripts]
+liveclip = "liveclip.cli.app:app"
+
+[tool.uv]
+index-url = "https://mirrors.aliyun.com/pypi/simple/"
+
+[tool.uv.pip]
+index-url = "https://mirrors.aliyun.com/pypi/simple/"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/liveclip"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "C4", "UP", "N"]
+ignore = ["E501", "N999", "B008"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["liveclip"]
+
+[tool.mypy]
+python_version = "3.11"
+mypy_path = ["src"]
+explicit_package_bases = true
+warn_return_any = true
+warn_unused_ignores = true
+disallow_untyped_defs = true
+no_implicit_optional = true
+check_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = ["funasr.*", "modelscope.*", "torch.*", "torchaudio.*", "execjs.*", "Crypto.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "--tb=short -v"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
