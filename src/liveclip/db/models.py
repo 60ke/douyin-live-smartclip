@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import Float, ForeignKey, String, func
+from sqlalchemy import Float, ForeignKey, String, Text, func
 from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
@@ -35,7 +35,7 @@ class LiveRoom(Base):
     quality: Mapped[str] = mapped_column(String(64), nullable=False, default="origin")
     max_duration_seconds: Mapped[int] = mapped_column(nullable=False, default=3600)
     pipeline_config_json: Mapped[str | None] = mapped_column(
-        String(4096), nullable=True, default=None
+        Text, nullable=True, default=None
     )
     enabled: Mapped[bool] = mapped_column(nullable=False, default=True)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now(), init=False)
@@ -61,7 +61,7 @@ class Task(Base):
     task_type: Mapped[str] = mapped_column(String(32), nullable=False)
     cron_expression: Mapped[str | None] = mapped_column(String(128), nullable=True, default=None)
     pipeline_config_json: Mapped[str | None] = mapped_column(
-        String(4096), nullable=True, default=None
+        Text, nullable=True, default=None
     )
     enabled: Mapped[bool] = mapped_column(nullable=False, default=True)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now(), init=False)
@@ -122,7 +122,7 @@ class TaskStep(Base):
     error_code: Mapped[str | None] = mapped_column(String(64), nullable=True, default=None)
     error_message: Mapped[str | None] = mapped_column(String(2048), nullable=True, default=None)
     duration_ms: Mapped[int] = mapped_column(nullable=False, default=0)
-    metadata_json: Mapped[str | None] = mapped_column(String(8192), nullable=True, default=None)
+    metadata_json: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now(), init=False)
 
     run: Mapped[TaskRun] = relationship(back_populates="steps", init=False)
@@ -221,7 +221,7 @@ class Clip(Base):
     source_record_id: Mapped[int | None] = mapped_column(
         ForeignKey("records.id"), nullable=True, default=None
     )
-    parts_json: Mapped[str | None] = mapped_column(String(16384), nullable=True, default=None)
+    parts_json: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)
     start_seconds: Mapped[float | None] = mapped_column(Float, nullable=True, default=None)
     end_seconds: Mapped[float | None] = mapped_column(Float, nullable=True, default=None)
     duration_seconds: Mapped[float | None] = mapped_column(Float, nullable=True, default=None)
@@ -282,7 +282,7 @@ class PromptProfile(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True, init=False)
     name: Mapped[str] = mapped_column(String(128), unique=True, nullable=False)
     step_name: Mapped[str] = mapped_column(String(64), nullable=False)
-    template_text: Mapped[str] = mapped_column(String(16384), nullable=False)
+    template_text: Mapped[str] = mapped_column(Text, nullable=False)
     description: Mapped[str] = mapped_column(String(1024), nullable=False, default="")
     is_active: Mapped[bool] = mapped_column(nullable=False, default=True)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now(), init=False)
@@ -303,7 +303,7 @@ class HotwordDict(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True, init=False)
     name: Mapped[str] = mapped_column(String(128), unique=True, nullable=False)
-    words_json: Mapped[str] = mapped_column(String(65536), nullable=False)
+    words_json: Mapped[str] = mapped_column(Text, nullable=False)
     is_active: Mapped[bool] = mapped_column(nullable=False, default=True)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now(), init=False)
     updated_at: Mapped[datetime] = mapped_column(
