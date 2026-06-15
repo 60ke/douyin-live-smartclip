@@ -52,6 +52,7 @@ class LLMClient:
         max_tokens: int | None = None,
         timeout_seconds: int | None = None,
         max_retries: int | None = None,
+        json_mode: bool = False,
     ) -> str:
         """调用 OpenAI 兼容的 Chat API。
 
@@ -93,6 +94,7 @@ class LLMClient:
                 temperature=temperature,
                 max_tokens=max_tokens,
                 timeout_seconds=timeout_seconds,
+                json_mode=json_mode,
             )
 
         try:
@@ -150,6 +152,7 @@ class LLMClient:
         temperature: float | None = None,
         max_tokens: int | None = None,
         timeout_seconds: int | None = None,
+        json_mode: bool = False,
     ) -> str:
         """发送单次 API 请求。"""
         url = self._chat_completions_url()
@@ -166,6 +169,8 @@ class LLMClient:
             "temperature": temperature if temperature is not None else self._temperature,
             "max_tokens": max_tokens if max_tokens is not None else self._max_tokens,
         }
+        if json_mode:
+            payload["response_format"] = {"type": "json_object"}
         logger.info(
             "llm_chat_payload",
             model=self._model,
@@ -190,6 +195,19 @@ class LLMClient:
                 json=payload,
                 timeout=timeout_seconds or self._timeout,
             )
+            if json_mode and _looks_like_unsupported_json_mode(resp):
+                logger.warning(
+                    "llm_json_mode_unsupported_retry_plain",
+                    model=self._model,
+                    status_code=resp.status_code,
+                )
+                payload.pop("response_format", None)
+                resp = requests.post(
+                    url,
+                    headers=headers,
+                    json=payload,
+                    timeout=timeout_seconds or self._timeout,
+                )
             if resp.status_code == 429 or resp.status_code >= 500:
                 raise requests.HTTPError(f"HTTP {resp.status_code}", response=resp)
             resp.raise_for_status()
@@ -254,3 +272,11 @@ def _dump_api_payload(kind: str, payload: dict[str, object]) -> None:
         encoding="utf-8",
     )
     logger.info("llm_api_payload_dumped", kind=kind, path=str(dump_path))
+
+
+def _looks_like_unsupported_json_mode(response: requests.Response) -> bool:
+    """Return true when an OpenAI-compatible provider rejects response_format."""
+    if response.status_code not in {400, 404, 422}:
+        return False
+    text = response.text.lower()
+    return "response_format" in text or "json_object" in text

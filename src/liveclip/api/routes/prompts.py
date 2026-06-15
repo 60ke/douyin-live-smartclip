@@ -24,8 +24,11 @@ async def create_prompt_profile(
 ) -> PromptProfileResponse:
     """创建 Prompt 配置。"""
     profile = await service.create(body)
+    await session.flush()
+    await session.refresh(profile)
+    response = PromptProfileResponse.model_validate(profile)
     await session.commit()
-    return PromptProfileResponse.model_validate(profile)
+    return response
 
 
 @router.get("/", response_model=list[PromptProfileResponse])
@@ -37,8 +40,9 @@ async def list_prompt_profiles(
 ) -> list[PromptProfileResponse]:
     """获取 Prompt 配置列表。"""
     items, _total = await service.get_all(offset=offset, limit=limit)
+    response = [PromptProfileResponse.model_validate(p) for p in items]
     await session.commit()
-    return [PromptProfileResponse.model_validate(p) for p in items]
+    return response
 
 
 @router.get("/{profile_id}", response_model=PromptProfileResponse)
@@ -51,8 +55,9 @@ async def get_prompt_profile(
     profile = await service.get_by_id(profile_id)
     if profile is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Prompt 配置不存在")
+    response = PromptProfileResponse.model_validate(profile)
     await session.commit()
-    return PromptProfileResponse.model_validate(profile)
+    return response
 
 
 @router.put("/{profile_id}", response_model=PromptProfileResponse)
@@ -66,8 +71,11 @@ async def update_prompt_profile(
     profile = await service.update(profile_id, body)
     if profile is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Prompt 配置不存在")
+    await session.flush()
+    await session.refresh(profile)
+    response = PromptProfileResponse.model_validate(profile)
     await session.commit()
-    return PromptProfileResponse.model_validate(profile)
+    return response
 
 
 @router.delete("/{profile_id}", status_code=status.HTTP_204_NO_CONTENT)

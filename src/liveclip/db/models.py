@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import Float, ForeignKey, String, Text, func
+from sqlalchemy import BigInteger, Float, ForeignKey, String, Text, func
 from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
@@ -142,7 +142,7 @@ class Record(Base):
     run_id: Mapped[int] = mapped_column(ForeignKey("task_runs.id"), nullable=False)
     source_type: Mapped[str] = mapped_column(String(32), nullable=False)
     file_path: Mapped[str] = mapped_column(String(1024), nullable=False)
-    file_size: Mapped[int] = mapped_column(nullable=False, default=0)
+    file_size: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
     duration_seconds: Mapped[float] = mapped_column(nullable=False, default=0.0)
     format: Mapped[str] = mapped_column(String(32), nullable=False, default="ts")
     created_at: Mapped[datetime] = mapped_column(server_default=func.now(), init=False)
@@ -197,6 +197,9 @@ class ClipPlan(Base):
     )
     segment_count: Mapped[int] = mapped_column(nullable=False, default=0)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now(), init=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        server_default=func.now(), onupdate=func.now(), init=False
+    )
 
     run: Mapped[TaskRun] = relationship(back_populates="clip_plans", init=False)
     llm_profile: Mapped[LlmProfile | None] = relationship(init=False)
@@ -234,7 +237,39 @@ class Clip(Base):
     subtitle_output_path: Mapped[str | None] = mapped_column(
         String(1024), nullable=True, default=None
     )
+    cover_title: Mapped[str | None] = mapped_column(String(512), nullable=True, default=None)
+    cover_source_image_path: Mapped[str | None] = mapped_column(
+        String(1024), nullable=True, default=None
+    )
+    cover_image_path: Mapped[str | None] = mapped_column(
+        String(1024), nullable=True, default=None
+    )
+    cover_intro_video_path: Mapped[str | None] = mapped_column(
+        String(1024), nullable=True, default=None
+    )
+    highlight_enabled: Mapped[bool] = mapped_column(nullable=False, default=False)
+    highlight_start_seconds: Mapped[float | None] = mapped_column(
+        Float, nullable=True, default=None
+    )
+    highlight_end_seconds: Mapped[float | None] = mapped_column(
+        Float, nullable=True, default=None
+    )
+    highlight_reason: Mapped[str | None] = mapped_column(
+        String(2048), nullable=True, default=None
+    )
+    highlight_confidence: Mapped[float | None] = mapped_column(
+        Float, nullable=True, default=None
+    )
+    highlight_video_path: Mapped[str | None] = mapped_column(
+        String(1024), nullable=True, default=None
+    )
+    final_video_path: Mapped[str | None] = mapped_column(
+        String(1024), nullable=True, default=None
+    )
     created_at: Mapped[datetime] = mapped_column(server_default=func.now(), init=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        server_default=func.now(), onupdate=func.now(), init=False
+    )
 
     plan: Mapped[ClipPlan] = relationship(back_populates="clips", init=False)
     source_record: Mapped[Record | None] = relationship(init=False)

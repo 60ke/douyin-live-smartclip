@@ -24,8 +24,11 @@ async def create_hotword_dict(
 ) -> HotwordDictResponse:
     """创建热词词典。"""
     hotword_dict = await service.create(body)
+    await session.flush()
+    await session.refresh(hotword_dict)
+    response = HotwordDictResponse.model_validate(hotword_dict)
     await session.commit()
-    return HotwordDictResponse.model_validate(hotword_dict)
+    return response
 
 
 @router.get("/", response_model=list[HotwordDictResponse])
@@ -37,8 +40,9 @@ async def list_hotword_dicts(
 ) -> list[HotwordDictResponse]:
     """获取热词词典列表。"""
     items, _total = await service.get_all(offset=offset, limit=limit)
+    response = [HotwordDictResponse.model_validate(d) for d in items]
     await session.commit()
-    return [HotwordDictResponse.model_validate(d) for d in items]
+    return response
 
 
 @router.get("/{dict_id}", response_model=HotwordDictResponse)
@@ -51,8 +55,9 @@ async def get_hotword_dict(
     hotword_dict = await service.get_by_id(dict_id)
     if hotword_dict is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="热词词典不存在")
+    response = HotwordDictResponse.model_validate(hotword_dict)
     await session.commit()
-    return HotwordDictResponse.model_validate(hotword_dict)
+    return response
 
 
 @router.put("/{dict_id}", response_model=HotwordDictResponse)
@@ -66,8 +71,11 @@ async def update_hotword_dict(
     hotword_dict = await service.update(dict_id, body)
     if hotword_dict is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="热词词典不存在")
+    await session.flush()
+    await session.refresh(hotword_dict)
+    response = HotwordDictResponse.model_validate(hotword_dict)
     await session.commit()
-    return HotwordDictResponse.model_validate(hotword_dict)
+    return response
 
 
 @router.delete("/{dict_id}", status_code=status.HTTP_204_NO_CONTENT)

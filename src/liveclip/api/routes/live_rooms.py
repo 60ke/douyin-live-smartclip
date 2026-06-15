@@ -25,8 +25,11 @@ async def create_live_room(
 ) -> LiveRoomResponse:
     """创建直播间。"""
     room = await service.create(body)
+    await session.flush()
+    await session.refresh(room)
+    response = LiveRoomResponse.model_validate(room)
     await session.commit()
-    return LiveRoomResponse.model_validate(room)
+    return response
 
 
 @router.get("/", response_model=LiveRoomListResponse)
@@ -38,11 +41,12 @@ async def list_live_rooms(
 ) -> LiveRoomListResponse:
     """获取直播间列表。"""
     items, total = await service.get_all(offset=offset, limit=limit)
-    await session.commit()
-    return LiveRoomListResponse(
+    response = LiveRoomListResponse(
         items=[LiveRoomResponse.model_validate(r) for r in items],
         total=total,
     )
+    await session.commit()
+    return response
 
 
 @router.get("/{room_id}", response_model=LiveRoomResponse)
@@ -55,9 +59,9 @@ async def get_live_room(
     room = await service.get_by_id(room_id)
     if room is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="直播间不存在")
+    response = LiveRoomResponse.model_validate(room)
     await session.commit()
-    await session.refresh(room)
-    return LiveRoomResponse.model_validate(room)
+    return response
 
 
 @router.put("/{room_id}", response_model=LiveRoomResponse)

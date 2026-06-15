@@ -5,9 +5,9 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from dotenv import load_dotenv
 import structlog
 import typer
+from dotenv import load_dotenv
 
 app = typer.Typer(help="API server management")
 

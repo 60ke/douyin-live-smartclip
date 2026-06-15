@@ -41,6 +41,11 @@ RUN python -m pip install --no-cache-dir uv
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev --index-url https://pypi.tuna.tsinghua.edu.cn/simple
 
+# runtime font for Chinese cover rendering
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    fonts-noto-cjk \
+    && rm -rf /var/lib/apt/lists/*
+
 # source
 COPY src/ ./src/
 COPY configs/ ./configs/

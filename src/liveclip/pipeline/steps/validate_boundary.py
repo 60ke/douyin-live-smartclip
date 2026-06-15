@@ -369,6 +369,7 @@ class ValidateBoundaryStep(BaseStep):
                 temperature=0.2,
                 max_tokens=700,
                 timeout_seconds=60,
+                json_mode=True,
             )
             data = extract_json_object(raw) or {
                 "passed": False,

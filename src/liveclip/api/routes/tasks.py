@@ -27,8 +27,9 @@ async def create_task(
 ) -> TaskResponse:
     """创建任务。"""
     task = await service.create(body)
+    response = TaskResponse.model_validate(task)
     await session.commit()
-    return TaskResponse.model_validate(task)
+    return response
 
 
 @router.get("/", response_model=TaskListResponse)
@@ -40,11 +41,12 @@ async def list_tasks(
 ) -> TaskListResponse:
     """获取任务列表。"""
     items, total = await service.get_all(offset=offset, limit=limit)
-    await session.commit()
-    return TaskListResponse(
+    response = TaskListResponse(
         items=[TaskResponse.model_validate(t) for t in items],
         total=total,
     )
+    await session.commit()
+    return response
 
 
 @router.get("/{task_id}", response_model=TaskResponse)
@@ -57,8 +59,9 @@ async def get_task(
     task = await service.get_by_id(task_id)
     if task is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任务不存在")
+    response = TaskResponse.model_validate(task)
     await session.commit()
-    return TaskResponse.model_validate(task)
+    return response
 
 
 @router.put("/{task_id}", response_model=TaskResponse)
@@ -72,8 +75,9 @@ async def update_task(
     task = await service.update(task_id, body)
     if task is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任务不存在")
+    response = TaskResponse.model_validate(task)
     await session.commit()
-    return TaskResponse.model_validate(task)
+    return response
 
 
 @router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -106,8 +110,9 @@ async def trigger_run(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任务不存在")
     run_create = RunCreate(task_id=task_id, trigger_type=TriggerType.API)
     run = await run_service.create(run_create)
+    response = RunResponse.model_validate(run)
     await session.commit()
-    return RunResponse.model_validate(run)
+    return response
 
 
 @router.get("/{task_id}/runs", response_model=RunListResponse)
@@ -124,8 +129,9 @@ async def list_task_runs(
     if task is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任务不存在")
     items, total = await run_service.get_by_task(task_id, offset=offset, limit=limit)
-    await session.commit()
-    return RunListResponse(
+    response = RunListResponse(
         items=[RunResponse.model_validate(r) for r in items],
         total=total,
     )
+    await session.commit()
+    return response

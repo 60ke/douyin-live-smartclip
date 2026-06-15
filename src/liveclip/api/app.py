@@ -115,19 +115,78 @@ def _ensure_productized_clip_columns(connection: Connection) -> None:
     """补齐早期 MVP 数据库缺失的切片映射字段。"""
     inspector = inspect(connection)
     table_names = set(inspector.get_table_names())
-    if "clips" not in table_names:
-        return
 
-    existing = {column["name"] for column in inspector.get_columns("clips")}
-    columns = {
-        "source_record_id": "ALTER TABLE clips ADD COLUMN source_record_id INT NULL",
-        "start_seconds": "ALTER TABLE clips ADD COLUMN start_seconds DOUBLE NULL",
-        "end_seconds": "ALTER TABLE clips ADD COLUMN end_seconds DOUBLE NULL",
-        "duration_seconds": "ALTER TABLE clips ADD COLUMN duration_seconds DOUBLE NULL",
-    }
-    for name, ddl in columns.items():
-        if name not in existing:
-            connection.execute(text(ddl))
+    if "records" in table_names:
+        record_columns = {column["name"]: column for column in inspector.get_columns("records")}
+        file_size = record_columns.get("file_size")
+        if file_size is not None and "BIGINT" not in str(file_size["type"]).upper():
+            connection.execute(
+                text("ALTER TABLE records MODIFY COLUMN file_size BIGINT NOT NULL DEFAULT 0")
+            )
+
+    if "clip_plans" in table_names:
+        existing_plan_columns = {
+            column["name"] for column in inspector.get_columns("clip_plans")
+        }
+        plan_columns = {
+            "raw_llm_response_path": (
+                "ALTER TABLE clip_plans ADD COLUMN raw_llm_response_path VARCHAR(1024) NULL"
+            ),
+            "normalized_plan_path": (
+                "ALTER TABLE clip_plans ADD COLUMN normalized_plan_path VARCHAR(1024) NULL"
+            ),
+            "validated_plan_path": (
+                "ALTER TABLE clip_plans ADD COLUMN validated_plan_path VARCHAR(1024) NULL"
+            ),
+            "updated_at": (
+                "ALTER TABLE clip_plans ADD COLUMN updated_at DATETIME "
+                "DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
+            ),
+        }
+        for name, ddl in plan_columns.items():
+            if name not in existing_plan_columns:
+                connection.execute(text(ddl))
+
+    if "clips" in table_names:
+        existing_clip_columns = {column["name"] for column in inspector.get_columns("clips")}
+        clip_columns = {
+            "source_record_id": "ALTER TABLE clips ADD COLUMN source_record_id INT NULL",
+            "start_seconds": "ALTER TABLE clips ADD COLUMN start_seconds DOUBLE NULL",
+            "end_seconds": "ALTER TABLE clips ADD COLUMN end_seconds DOUBLE NULL",
+            "duration_seconds": "ALTER TABLE clips ADD COLUMN duration_seconds DOUBLE NULL",
+            "cover_title": "ALTER TABLE clips ADD COLUMN cover_title VARCHAR(512) NULL",
+            "cover_source_image_path": (
+                "ALTER TABLE clips ADD COLUMN cover_source_image_path VARCHAR(1024) NULL"
+            ),
+            "cover_image_path": "ALTER TABLE clips ADD COLUMN cover_image_path VARCHAR(1024) NULL",
+            "cover_intro_video_path": (
+                "ALTER TABLE clips ADD COLUMN cover_intro_video_path VARCHAR(1024) NULL"
+            ),
+            "highlight_enabled": (
+                "ALTER TABLE clips ADD COLUMN highlight_enabled BOOLEAN NOT NULL DEFAULT FALSE"
+            ),
+            "highlight_start_seconds": (
+                "ALTER TABLE clips ADD COLUMN highlight_start_seconds DOUBLE NULL"
+            ),
+            "highlight_end_seconds": (
+                "ALTER TABLE clips ADD COLUMN highlight_end_seconds DOUBLE NULL"
+            ),
+            "highlight_reason": "ALTER TABLE clips ADD COLUMN highlight_reason VARCHAR(2048) NULL",
+            "highlight_confidence": (
+                "ALTER TABLE clips ADD COLUMN highlight_confidence DOUBLE NULL"
+            ),
+            "highlight_video_path": (
+                "ALTER TABLE clips ADD COLUMN highlight_video_path VARCHAR(1024) NULL"
+            ),
+            "final_video_path": "ALTER TABLE clips ADD COLUMN final_video_path VARCHAR(1024) NULL",
+            "updated_at": (
+                "ALTER TABLE clips ADD COLUMN updated_at DATETIME "
+                "DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
+            ),
+        }
+        for name, ddl in clip_columns.items():
+            if name not in existing_clip_columns:
+                connection.execute(text(ddl))
 
 
 async def _start_embedded_worker(app: FastAPI, settings: AppSettings) -> None:

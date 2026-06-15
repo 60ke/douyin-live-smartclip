@@ -29,17 +29,16 @@ class ClipService:
 
     async def get_plans_by_run(self, run_id: int) -> list[ClipPlan]:
         """根据运行 ID 获取切片方案列表。"""
-        plan = await self.get_plan_by_run(run_id)
-        return [plan] if plan is not None else []
+        return await self._plan_repo.get_clip_plans_by_run(self._session, run_id)
 
     async def get_clips_by_plan(self, plan_id: int) -> list[Clip]:
         """获取方案下所有切片。"""
         return await self._clip_repo.get_clips_by_plan(self._session, plan_id)
 
     async def get_clips_by_run(self, run_id: int) -> list[Clip]:
-        """根据运行 ID 获取所有切片。"""
+        """根据运行 ID 获取最新方案下的切片。"""
         plan = await self._plan_repo.get_clip_plan_by_run(self._session, run_id)
-        if not plan:
+        if plan is None:
             return []
         return await self._clip_repo.get_clips_by_plan(self._session, plan.id)
 

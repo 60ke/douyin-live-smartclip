@@ -7,7 +7,7 @@ from datetime import datetime
 from pathlib import Path
 
 import structlog
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from liveclip.db.models import Clip, ClipPlan, Record, Subtitle, TaskRun, TaskStep
@@ -334,13 +334,27 @@ class RunService:
         plan_dir = summary_path.parent.parent / "plans"
         plan_scores = self._load_plan_scores(plan_dir)
 
-        # 创建 ClipPlan
-        clip_plan = ClipPlan(
-            run_id=step.run_id,
-            status="COMPLETED",
-            segment_count=summary_data.get("total", 0),
+        artifact_paths = _resolve_plan_artifact_paths(plan_dir)
+
+        plan_stmt = (
+            select(ClipPlan)
+            .where(ClipPlan.run_id == step.run_id)
+            .order_by(ClipPlan.id.desc())
+            .limit(1)
         )
-        self._session.add(clip_plan)
+        plan_result = await self._session.execute(plan_stmt)
+        clip_plan = plan_result.scalar_one_or_none()
+        if clip_plan is None:
+            clip_plan = ClipPlan(run_id=step.run_id)
+            self._session.add(clip_plan)
+        else:
+            await self._session.execute(delete(Clip).where(Clip.plan_id == clip_plan.id))
+
+        clip_plan.status = "COMPLETED"
+        clip_plan.segment_count = _metadata_int(summary_data, "total") or 0
+        clip_plan.raw_llm_response_path = artifact_paths.get("raw_llm_response_path")
+        clip_plan.normalized_plan_path = artifact_paths.get("normalized_plan_path")
+        clip_plan.validated_plan_path = artifact_paths.get("validated_plan_path")
         await self._session.flush()  # 需要 plan_id
 
         source_record = await self._get_source_record(step.run_id)
@@ -371,7 +385,7 @@ class RunService:
             )
 
         logger.info(
-            "clip_plan_created",
+            "clip_plan_synced",
             run_id=step.run_id,
             plan_id=clip_plan.id,
             clip_count=summary_data.get("total", 0),
@@ -437,6 +451,18 @@ def _metadata_float(metadata: dict[str, object] | None, key: str) -> float | Non
         except ValueError:
             return None
     return None
+
+
+def _resolve_plan_artifact_paths(plan_dir: Path) -> dict[str, str | None]:
+    return {
+        "raw_llm_response_path": _existing_path(plan_dir / "raw_llm_response.json"),
+        "normalized_plan_path": _existing_path(plan_dir / "normalized_plan.json"),
+        "validated_plan_path": _existing_path(plan_dir / "validated_plan.json"),
+    }
+
+
+def _existing_path(path: Path) -> str | None:
+    return str(path) if path.exists() else None
 
 
 def _count_subtitle_words(path: Path) -> int:

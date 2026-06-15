@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from sqlalchemy import BigInteger
+
+from liveclip.db.models import Clip, ClipPlan, Record
 from liveclip.domain.models import (
     ClipSegment,
     ClipSegmentConfig,
@@ -7,6 +10,25 @@ from liveclip.domain.models import (
     StepResult,
     SubtitleEntry,
 )
+
+
+class TestDbArtifactModels:
+    """Tests for DB artifact model columns that protect production data."""
+
+    def test_record_file_size_uses_bigint(self) -> None:
+        assert isinstance(Record.__table__.c.file_size.type, BigInteger)
+
+    def test_clip_plan_has_updated_at(self) -> None:
+        assert "updated_at" in ClipPlan.__table__.c
+
+    def test_clip_has_updated_at(self) -> None:
+        assert "updated_at" in Clip.__table__.c
+
+    def test_clip_has_highlight_columns(self) -> None:
+        assert "highlight_enabled" in Clip.__table__.c
+        assert "highlight_start_seconds" in Clip.__table__.c
+        assert "highlight_end_seconds" in Clip.__table__.c
+        assert "highlight_video_path" in Clip.__table__.c
 
 
 class TestSubtitleEntry:

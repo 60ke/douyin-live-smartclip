@@ -22,11 +22,12 @@ async def list_runs(
 ) -> RunListResponse:
     """获取运行列表。"""
     items, total = await service.get_all(offset=offset, limit=limit)
-    await session.commit()
-    return RunListResponse(
+    response = RunListResponse(
         items=[RunResponse.model_validate(r) for r in items],
         total=total,
     )
+    await session.commit()
+    return response
 
 
 @router.get("/{run_id}", response_model=RunDetailResponse)
@@ -40,11 +41,12 @@ async def get_run(
         run, steps = await service.get_detail(run_id)
     except ValueError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="运行不存在") from None
-    await session.commit()
-    return RunDetailResponse(
+    response = RunDetailResponse(
         **RunResponse.model_validate(run).model_dump(),
         steps=[StepResponse.model_validate(s) for s in steps],
     )
+    await session.commit()
+    return response
 
 
 @router.post("/{run_id}/cancel", response_model=RunResponse)
@@ -66,6 +68,11 @@ async def cancel_run(
             detail="只有 PENDING 或 RUNNING 状态的运行才能取消",
         )
     await service.cancel_run(run_id)
-    await session.commit()
     run = await service.get_by_id(run_id)
-    return RunResponse.model_validate(run)
+    if run is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="运行不存在") from None
+    await session.flush()
+    await session.refresh(run)
+    response = RunResponse.model_validate(run)
+    await session.commit()
+    return response

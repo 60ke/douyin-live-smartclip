@@ -14,9 +14,15 @@ from liveclip.api.deps import get_clip_service, get_db_session
 from liveclip.config import load_settings
 from liveclip.db.models import Clip, ClipPlan, LiveRoom, Record, Subtitle, Task, TaskRun
 from liveclip.domain.enums import ClipStatus
+from liveclip.exceptions import LLMError
 from liveclip.observability import get_logger
-from liveclip.schemas.clip import ClipPlanResponse, ClipResponse, RecordingClipResponse
-from liveclip.services import ClipService
+from liveclip.schemas.clip import (
+    ClipCoverUpdateRequest,
+    ClipPlanResponse,
+    ClipResponse,
+    RecordingClipResponse,
+)
+from liveclip.services import ClipCoverRenderer, ClipService, HighlightIntroSelector
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/v1/clips", tags=["clips"])
@@ -35,8 +41,9 @@ async def get_clips_by_run(
     plans = await service.get_plans_by_run(run_id)
     if not plans:
         plans = await _backfill_clips_from_disk(session, run_id)
+    response = [ClipPlanResponse.model_validate(p) for p in plans]
     await session.commit()
-    return [ClipPlanResponse.model_validate(p) for p in plans]
+    return response
 
 
 @router.get("/plan/{plan_id}", response_model=list[ClipResponse])
@@ -47,10 +54,12 @@ async def get_clips_by_plan(
 ) -> list[ClipResponse]:
     """根据方案 ID 获取切片列表。"""
     clips = await service.get_clips_by_plan(plan_id)
-    await session.commit()
     if not clips:
+        await session.commit()
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="该方案无切片")
-    return [ClipResponse.model_validate(c) for c in clips]
+    response = [ClipResponse.model_validate(c) for c in clips]
+    await session.commit()
+    return response
 
 
 @router.get("/recording/{record_id}", response_model=list[RecordingClipResponse])
@@ -90,12 +99,13 @@ async def get_clips_by_recording(
         if clip.source_record_id is None:
             clip.source_record_id = record.id
             changed = True
-    await session.commit()
+    if changed:
+        await session.flush()
 
     if changed:
         logger.info("recording_clips_source_record_backfilled", record_id=record.id, run_id=run.id)
 
-    return [
+    response = [
         _build_recording_clip_response(
             clip=clip,
             record=record,
@@ -106,6 +116,104 @@ async def get_clips_by_recording(
         )
         for clip in clips
     ]
+    await session.commit()
+    return response
+
+
+@router.put("/{clip_id}/cover", response_model=ClipResponse)
+async def update_clip_cover(
+    clip_id: int,
+    payload: ClipCoverUpdateRequest,
+    session: AsyncSession = Depends(get_db_session),
+) -> ClipResponse:
+    """编辑切片封面并生成封面首帧视频与最终视频。"""
+    clip = await session.get(Clip, clip_id)
+    if clip is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="切片不存在")
+    if not clip.output_path:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="切片暂无视频文件")
+
+    settings = load_settings()
+    base_dir = settings.storage.base_dir.resolve()
+    video_path = _resolve_existing_path(clip.output_path, base_dir=base_dir)
+    source_image_path = (
+        _resolve_existing_path(payload.source_image_path, base_dir=base_dir)
+        if payload.source_image_path
+        else None
+    )
+
+    renderer = ClipCoverRenderer(
+        ffmpeg_binary=settings.ffmpeg.ffmpeg_binary,
+        ffprobe_binary=settings.ffmpeg.ffprobe_binary,
+    )
+    llm_highlight_reason: str | None = None
+    llm_highlight_confidence: float | None = None
+    highlight_enabled = payload.highlight_enabled
+    highlight_start_seconds = payload.highlight_start_seconds
+    highlight_end_seconds = payload.highlight_end_seconds
+    try:
+        if (
+            highlight_enabled
+            and highlight_start_seconds is None
+            and highlight_end_seconds is None
+        ):
+            spec = renderer.probe_video(video_path)
+            subtitle_path = _resolve_optional_existing_path(
+                clip.subtitle_output_path,
+                base_dir=base_dir,
+            )
+            decision = HighlightIntroSelector().select(
+                title=payload.title or clip.title,
+                duration_seconds=spec.duration_seconds,
+                subtitle_path=subtitle_path,
+                reason=clip.reason,
+                structure_reason=clip.structure_reason,
+            )
+            if not decision.enabled:
+                highlight_enabled = False
+            highlight_start_seconds = decision.start_seconds
+            highlight_end_seconds = decision.end_seconds
+            llm_highlight_reason = decision.reason
+            llm_highlight_confidence = decision.confidence
+        result = renderer.render(
+            clip_id=clip.id,
+            video_path=video_path,
+            output_dir=video_path.parent / "covers",
+            title=payload.title,
+            source_image_path=source_image_path,
+            cover_duration_seconds=payload.cover_duration_seconds,
+            highlight_enabled=highlight_enabled,
+            highlight_start_seconds=highlight_start_seconds,
+            highlight_end_seconds=highlight_end_seconds,
+        )
+    except LLMError as exc:
+        logger.warning("clip_highlight_llm_failed", clip_id=clip.id, error=str(exc), exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"高能片头 LLM 判断失败: {exc.message}",
+        ) from exc
+    except (FileNotFoundError, ValueError) as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.warning("clip_cover_render_failed", clip_id=clip.id, error=str(exc), exc_info=True)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="封面生成失败") from exc
+
+    clip.cover_title = payload.title
+    clip.cover_source_image_path = str(source_image_path) if source_image_path else None
+    clip.cover_image_path = str(result.cover_image_path)
+    clip.cover_intro_video_path = str(result.cover_intro_video_path)
+    clip.highlight_enabled = result.highlight_enabled
+    clip.highlight_start_seconds = result.highlight_start_seconds
+    clip.highlight_end_seconds = result.highlight_end_seconds
+    clip.highlight_reason = llm_highlight_reason or result.highlight_reason
+    clip.highlight_confidence = llm_highlight_confidence or result.highlight_confidence
+    clip.highlight_video_path = str(result.highlight_video_path) if result.highlight_video_path else None
+    clip.final_video_path = str(result.final_video_path)
+    await session.flush()
+    await session.refresh(clip)
+    response = ClipResponse.model_validate(clip)
+    await session.commit()
+    return response
 
 
 async def _backfill_clips_from_disk(
@@ -246,6 +354,29 @@ def _prefer_original_subtitle(subtitles: list[Subtitle]) -> Subtitle | None:
     return subtitles[-1]
 
 
+def _resolve_existing_path(path: str | None, *, base_dir: Path) -> Path:
+    if not path:
+        raise FileNotFoundError("文件路径为空")
+    file_path = Path(path).expanduser()
+    if not file_path.is_absolute():
+        file_path = base_dir / file_path
+    file_path = file_path.resolve()
+    if not file_path.exists():
+        raise FileNotFoundError(f"文件不存在: {path}")
+    if not file_path.is_file():
+        raise FileNotFoundError(f"路径不是文件: {path}")
+    return file_path
+
+
+def _resolve_optional_existing_path(path: str | None, *, base_dir: Path) -> Path | None:
+    if not path:
+        return None
+    try:
+        return _resolve_existing_path(path, base_dir=base_dir)
+    except FileNotFoundError:
+        return None
+
+
 def _build_recording_clip_response(
     *,
     clip: Clip,
@@ -285,6 +416,19 @@ def _build_recording_clip_response(
         status=ClipStatus(clip.status),
         output_path=clip.output_path,
         subtitle_output_path=clip.subtitle_output_path,
+        cover_title=clip.cover_title,
+        cover_source_image_path=clip.cover_source_image_path,
+        cover_image_path=clip.cover_image_path,
+        cover_intro_video_path=clip.cover_intro_video_path,
+        highlight_enabled=clip.highlight_enabled,
+        highlight_start_seconds=clip.highlight_start_seconds,
+        highlight_end_seconds=clip.highlight_end_seconds,
+        highlight_reason=clip.highlight_reason,
+        highlight_confidence=clip.highlight_confidence,
+        highlight_video_path=clip.highlight_video_path,
+        final_video_path=clip.final_video_path,
+        playable_video_path=clip.final_video_path or clip.output_path,
+        subtitle_mode="none" if clip.final_video_path else "external",
         created_at=clip.created_at,
     )
 

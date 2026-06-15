@@ -13,11 +13,14 @@ from sqlalchemy.ext.asyncio import (
 
 engine: AsyncEngine | None = None
 async_session_factory: async_sessionmaker[AsyncSession] | None = None
+_database_url: str | None = None
 
 
 def init_db(database_url: str) -> None:
     """创建异步引擎和会话工厂。"""
-    global engine, async_session_factory  # noqa: PLW0603
+    global _database_url, engine, async_session_factory  # noqa: PLW0603
+    if engine is not None and async_session_factory is not None and _database_url == database_url:
+        return
     engine = create_async_engine(
         database_url,
         echo=False,
@@ -25,6 +28,7 @@ def init_db(database_url: str) -> None:
         pool_recycle=3600,
     )
     async_session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    _database_url = database_url
 
 
 async def get_session() -> AsyncGenerator[AsyncSession, None]:

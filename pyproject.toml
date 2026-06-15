@@ -26,6 +26,7 @@ dependencies = [
     "PyExecJS>=1.5.1",
     "greenlet>=3.0.0",
     "asyncmy>=0.2.10",
+    "pillow>=11.0.0",
 ]
 
 [dependency-groups]

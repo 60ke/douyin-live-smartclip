@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import threading
 from typing import TYPE_CHECKING
 
 import structlog
@@ -109,16 +108,13 @@ class StepExecutor:
                 error_message=f"步骤实例化失败: {exc}",
             )
 
-        # 3. 启动心跳线程
-        stop_heartbeat = threading.Event()
+        # 3. 启动同事件循环内的心跳任务，避免 async DB 连接跨 loop 使用。
+        stop_heartbeat = asyncio.Event()
         heartbeat_interval = self._settings.worker.heartbeat_interval_seconds
-        heartbeat_thread = threading.Thread(
-            target=self._heartbeat_loop,
-            args=(ctx.run_id, stop_heartbeat, heartbeat_interval),
-            daemon=True,
+        heartbeat_task = asyncio.create_task(
+            self._heartbeat_loop(ctx.run_id, stop_heartbeat, heartbeat_interval),
             name=f"heartbeat-run-{ctx.run_id}",
         )
-        heartbeat_thread.start()
 
         # 4. 执行步骤
         try:
@@ -174,7 +170,14 @@ class StepExecutor:
 
         finally:
             stop_heartbeat.set()
-            heartbeat_thread.join(timeout=5.0)
+            try:
+                await asyncio.wait_for(heartbeat_task, timeout=5.0)
+            except TimeoutError:
+                heartbeat_task.cancel()
+                try:
+                    await heartbeat_task
+                except asyncio.CancelledError:
+                    pass
             await run_service._session.commit()
 
         return result
@@ -266,16 +269,15 @@ class StepExecutor:
         raise ValueError(f"未知的步骤名称: {step_name}")
 
     @staticmethod
-    def _heartbeat_loop(
+    async def _heartbeat_loop(
         run_id: int,
-        stop_event: threading.Event,
+        stop_event: asyncio.Event,
         interval: float = 30.0,
     ) -> None:
-        """心跳后台线程，定期更新运行心跳时间。
+        """心跳后台任务，定期更新运行心跳时间。
 
-        在独立线程中运行，通过 *stop_event* 控制退出。
-        使用独立的数据库会话和事件循环执行心跳更新，
-        避免与主线程的会话冲突。
+        在 worker 的同一个 asyncio 事件循环中运行，通过 *stop_event*
+        控制退出。每次心跳使用独立会话，避免与步骤状态更新事务互相影响。
 
         Args:
             run_id: 运行 ID。
@@ -287,24 +289,22 @@ class StepExecutor:
 
         repo = TaskRunRepository()
 
-        while not stop_event.is_set():
-            loop = asyncio.new_event_loop()
-            session = None
+        while True:
             try:
-                session = get_session_context()
-                loop.run_until_complete(repo.update_heartbeat(session, run_id))
-                loop.run_until_complete(session.commit())
+                async with get_session_context() as session:
+                    await repo.update_heartbeat(session, run_id)
+                    await session.commit()
             except Exception as exc:
                 logger.warning(
                     "heartbeat_update_failed",
                     run_id=run_id,
                     error=str(exc),
                 )
-            finally:
-                if session is not None:
-                    loop.run_until_complete(session.close())
-                loop.close()
-            stop_event.wait(timeout=interval)
+            try:
+                await asyncio.wait_for(stop_event.wait(), timeout=interval)
+                return
+            except TimeoutError:
+                continue
 
 
 def _get_llm_api_key() -> str:

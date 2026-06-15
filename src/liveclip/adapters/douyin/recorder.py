@@ -64,6 +64,7 @@ class DouyinRecorder:
             max_duration=max_duration,
         )
 
+        ffmpeg_output: list[str] = []
         try:
             result = run_long_command(
                 cmd,
@@ -71,6 +72,7 @@ class DouyinRecorder:
                 heartbeat_callback=heartbeat_callback,
                 cancel_check=cancel_check,
                 heartbeat_interval=10.0,
+                log_callback=ffmpeg_output.append,
             )
         except Exception as exc:
             # 清理残留的 .part 文件
@@ -85,13 +87,14 @@ class DouyinRecorder:
         if result.returncode != 0:
             if part_path.exists():
                 part_path.unlink(missing_ok=True)
+            output_tail = _tail_output(result.stdout or "\n".join(ffmpeg_output))
             raise RecordError(
                 RECORD_FAILED,
-                f"录制进程退出码非零: {result.returncode}",
+                f"录制进程退出码非零: {result.returncode}; 输出: {output_tail}",
                 details={
                     "output_path": str(output_path),
                     "returncode": result.returncode,
-                    "stderr": result.stderr,
+                    "stderr": output_tail,
                 },
             )
 
@@ -108,3 +111,10 @@ class DouyinRecorder:
         logger.info("recording_finished", output_path=str(output_path))
 
         return output_path
+
+
+def _tail_output(output: str, max_chars: int = 1200) -> str:
+    cleaned = output.strip()
+    if not cleaned:
+        return ""
+    return cleaned[-max_chars:]

@@ -5,8 +5,8 @@ from __future__ import annotations
 import asyncio
 from pathlib import Path
 
-from dotenv import load_dotenv
 import typer
+from dotenv import load_dotenv
 
 app = typer.Typer(help="Worker management")
 

@@ -43,14 +43,27 @@ class ClipPlanRepository(BaseRepository[ClipPlan]):
         super().__init__(ClipPlan)
 
     async def get_clip_plan_by_run(self, session: AsyncSession, run_id: int) -> ClipPlan | None:
-        """获取某次运行的切片方案（含 clips 预加载）。"""
+        """获取某次运行最新的切片方案（含 clips 预加载）。"""
         stmt = (
             select(self.model)
             .options(selectinload(self.model.clips))
             .where(self.model.run_id == run_id)
+            .order_by(self.model.id.desc())
+            .limit(1)
         )
         result = await session.execute(stmt)
         return result.scalar_one_or_none()
+
+    async def get_clip_plans_by_run(self, session: AsyncSession, run_id: int) -> list[ClipPlan]:
+        """获取某次运行的所有切片方案（含 clips 预加载），按最新优先。"""
+        stmt = (
+            select(self.model)
+            .options(selectinload(self.model.clips))
+            .where(self.model.run_id == run_id)
+            .order_by(self.model.id.desc())
+        )
+        result = await session.execute(stmt)
+        return list(result.scalars().all())
 
 
 class ClipRepository(BaseRepository[Clip]):

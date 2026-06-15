@@ -33,11 +33,11 @@ async def serve_media(
         file_path = (base_dir / path).resolve()
         try:
             file_path.relative_to(base_dir)
-        except ValueError:
+        except ValueError as exc:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="拒绝访问：文件路径不在允许的目录范围内",
-            )
+            ) from exc
 
     if not file_path.exists():
         raise HTTPException(

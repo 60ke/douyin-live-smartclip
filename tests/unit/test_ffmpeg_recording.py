@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from subprocess import CompletedProcess
 
+import pytest
 from pytest import MonkeyPatch
 
 from liveclip.adapters.douyin import recorder as recorder_module
@@ -27,6 +28,9 @@ def test_record_stream_to_ts_uses_ffmpeg_not_streamlink(tmp_path: Path) -> None:
     assert "-f" in cmd
     assert "mpegts" in cmd
     assert cmd[cmd.index("-analyzeduration") + 1] == "20000000"
+    assert cmd.index("-reconnect_delay_max") < cmd.index("-i")
+    assert cmd.index("-reconnect_streamed") < cmd.index("-i")
+    assert cmd.index("-reconnect_at_eof") < cmd.index("-i")
     assert str(output_path) == cmd[-1]
 
 
@@ -174,3 +178,26 @@ def test_douyin_recorder_unlimited_duration_has_no_outer_timeout(
     assert isinstance(cmd, list)
     assert "-t" not in cmd
     assert captured["timeout"] is None
+
+
+def test_douyin_recorder_failure_includes_ffmpeg_output_tail(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    output_path = tmp_path / "record.ts"
+
+    def fake_run_long_command(cmd: list[str], **kwargs: object) -> CompletedProcess[str]:
+        callback = kwargs.get("log_callback")
+        if callable(callback):
+            callback("first line")
+            callback("ffmpeg final error")
+        return CompletedProcess(cmd, 155, "first line\nffmpeg final error", "")
+
+    monkeypatch.setattr(recorder_module, "run_long_command", fake_run_long_command)
+
+    with pytest.raises(Exception, match="ffmpeg final error"):
+        DouyinRecorder().record(
+            stream_url="https://example.com/live.m3u8",
+            output_path=output_path,
+            max_duration=9,
+        )

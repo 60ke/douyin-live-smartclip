@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from liveclip.domain.enums import ClipPlanStatus, ClipStatus
 
@@ -31,6 +31,17 @@ class ClipResponse(BaseModel):
     status: ClipStatus
     output_path: str | None
     subtitle_output_path: str | None
+    cover_title: str | None = None
+    cover_source_image_path: str | None = None
+    cover_image_path: str | None = None
+    cover_intro_video_path: str | None = None
+    highlight_enabled: bool = False
+    highlight_start_seconds: float | None = None
+    highlight_end_seconds: float | None = None
+    highlight_reason: str | None = None
+    highlight_confidence: float | None = None
+    highlight_video_path: str | None = None
+    final_video_path: str | None = None
     created_at: datetime
 
 
@@ -83,4 +94,28 @@ class RecordingClipResponse(BaseModel):
     status: ClipStatus
     output_path: str | None
     subtitle_output_path: str | None
+    cover_title: str | None = None
+    cover_source_image_path: str | None = None
+    cover_image_path: str | None = None
+    cover_intro_video_path: str | None = None
+    highlight_enabled: bool = False
+    highlight_start_seconds: float | None = None
+    highlight_end_seconds: float | None = None
+    highlight_reason: str | None = None
+    highlight_confidence: float | None = None
+    highlight_video_path: str | None = None
+    final_video_path: str | None = None
+    playable_video_path: str | None = None
+    subtitle_mode: str = "external"
     created_at: datetime
+
+
+class ClipCoverUpdateRequest(BaseModel):
+    """Request body for editing and rendering a clip cover."""
+
+    title: str = Field(..., min_length=1, max_length=80)
+    source_image_path: str | None = Field(default=None, max_length=1024)
+    cover_duration_seconds: float = Field(default=1.0, gt=0, le=5)
+    highlight_enabled: bool = False
+    highlight_start_seconds: float | None = Field(default=None, ge=0)
+    highlight_end_seconds: float | None = Field(default=None, gt=0)

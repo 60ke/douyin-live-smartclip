@@ -40,7 +40,6 @@ async def list_room_recordings(
 
     run_ids = [record.run_id for record, _, _, _ in rows]
     subtitles = await _preferred_subtitles_by_run(session, run_ids)
-    await session.commit()
 
     recordings: list[RecordingResponse] = []
     for record, run, task, room in rows:
@@ -72,6 +71,7 @@ async def list_room_recordings(
                 run_id=record.run_id,
                 exc_info=True,
             )
+    await session.commit()
     return recordings
 
 
@@ -85,8 +85,9 @@ async def list_run_records(
         select(Record).where(Record.run_id == run_id).order_by(Record.created_at.desc())
     )
     records = list(result.scalars().all())
+    response = [RecordResponse.model_validate(record) for record in records]
     await session.commit()
-    return [RecordResponse.model_validate(record) for record in records]
+    return response
 
 
 @router.get("/run/{run_id}/subtitles", response_model=list[SubtitleResponse])
@@ -99,9 +100,10 @@ async def list_run_subtitles(
         select(Subtitle).where(Subtitle.run_id == run_id).order_by(Subtitle.id.asc())
     )
     subtitles = list(result.scalars().all())
-    await session.commit()
     original_subtitles = _original_subtitles(subtitles)
-    return [SubtitleResponse.model_validate(subtitle) for subtitle in original_subtitles]
+    response = [SubtitleResponse.model_validate(subtitle) for subtitle in original_subtitles]
+    await session.commit()
+    return response
 
 
 async def _preferred_subtitles_by_run(

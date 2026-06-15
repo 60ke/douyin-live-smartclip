@@ -1195,6 +1195,7 @@ class PlanClipsStep(BaseStep):
                 max_tokens=max(ctx.llm_call_config.max_tokens, PLAN_LLM_MAX_TOKENS),
                 timeout_seconds=max(ctx.llm_call_config.timeout_seconds, 180),
                 max_retries=ctx.llm_call_config.max_retries,
+                json_mode=True,
             )
 
         payload = {
@@ -1217,6 +1218,7 @@ class PlanClipsStep(BaseStep):
             max_tokens=max(ctx.llm_call_config.max_tokens, PLAN_LLM_MAX_TOKENS),
             timeout_seconds=max(ctx.llm_call_config.timeout_seconds, 180),
             max_retries=ctx.llm_call_config.max_retries,
+            json_mode=True,
         )
         self._dump_llm(ctx, "full_response", "", "", response=response)
         return response
@@ -1251,6 +1253,7 @@ class PlanClipsStep(BaseStep):
             max_tokens=max(ctx.llm_call_config.max_tokens, PLAN_LLM_MAX_TOKENS),
             timeout_seconds=max(ctx.llm_call_config.timeout_seconds, 180),
             max_retries=ctx.llm_call_config.max_retries,
+            json_mode=True,
         )
         self._dump_llm(ctx, "structure_response", "", "", response=raw_structure)
 
@@ -1376,6 +1379,7 @@ class PlanClipsStep(BaseStep):
                 max_tokens=max(ctx.llm_call_config.max_tokens, REFINE_LLM_MAX_TOKENS),
                 timeout_seconds=75,
                 max_retries=ctx.llm_call_config.max_retries,
+                json_mode=True,
             )
             self._dump_llm(ctx, tag + "_response", "", "", response=raw)
         except LLMError as exc:
