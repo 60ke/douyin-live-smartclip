@@ -232,7 +232,7 @@ def test_refine_candidate_uses_large_token_window(tmp_path: Path) -> None:
     )
 
     assert len(segments) == 1
-    assert llm.calls[0]["max_tokens"] == 300_000
+    assert llm.calls[0]["max_tokens"] == 4_000
     assert llm.calls[0]["timeout_seconds"] == 75
 
 
@@ -246,7 +246,7 @@ def test_full_prompt_uses_large_token_window(tmp_path: Path) -> None:
     response = step._call_full_prompt(ctx, subtitles, sentences)
 
     assert response == '{"segments": []}'
-    assert llm.calls[0]["max_tokens"] == 400_000
+    assert llm.calls[0]["max_tokens"] == 8_000
     assert llm.calls[0]["timeout_seconds"] == 180
 
 

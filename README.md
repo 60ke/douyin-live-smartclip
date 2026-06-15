@@ -382,6 +382,26 @@ docker compose up -d --build
 docker compose logs -f liveclip
 ```
 
+如果服务器有 NVIDIA GPU，并希望 FunASR 自动使用宿主机 CUDA，需要先在宿主机安装 NVIDIA driver 和 NVIDIA Container Toolkit，确认下面命令能看到 GPU：
+
+```bash
+docker run --rm --gpus all nvidia/cuda:12.4.1-base-ubuntu22.04 nvidia-smi
+```
+
+然后使用 GPU override 启动：
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d --build
+docker compose -f docker-compose.yml -f docker-compose.gpu.yml logs -f liveclip
+```
+
+`configs/app.toml` 中 `[funasr].device = "auto"` 时，容器内 `torch.cuda.is_available()` 为 true 会自动选择 `cuda`；也可以显式改成 `device = "cuda"`。GPU override 会给 `liveclip` 服务添加 `gpus: all`，并设置：
+
+```text
+NVIDIA_VISIBLE_DEVICES=all
+NVIDIA_DRIVER_CAPABILITIES=compute,utility,video
+```
+
 验证：
 
 ```bash
@@ -398,7 +418,7 @@ mysql_data  # Docker volume，MySQL 8.0 数据
 ./logs      # 日志
 ```
 
-Dockerfile 已配置国内构建源：apt 使用清华 Debian 源，Python/uv 使用清华 PyPI 源，Hugging Face 默认使用 `https://hf-mirror.com`。基础镜像 `python:3.11-slim` 的拉取镜像源由服务器 Docker daemon 的 registry mirror 配置决定。
+Dockerfile 已配置国内构建源：apt 使用清华 Debian 源，Python/uv 使用清华 PyPI 源，Hugging Face 默认使用 `https://hf-mirror.com`。基础镜像 `python:3.11-slim` 的拉取镜像源由服务器 Docker daemon 的 registry mirror 配置决定。Linux 镜像内的 PyTorch wheel 会安装 NVIDIA CUDA 运行库依赖，但是否能使用宿主机 GPU 取决于启动容器时是否通过 NVIDIA Container Toolkit 暴露 GPU。
 
 ---
 
