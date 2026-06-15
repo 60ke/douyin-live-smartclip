@@ -59,7 +59,7 @@ class TranscribeStep(BaseStep):
             # 执行转写
             from pathlib import Path
 
-            srt_path = ctx.paths.srt_path
+            srt_path = ctx.paths.raw_srt_path
             self._transcriber.transcribe(
                 video_path=Path(video_path),
                 output_srt_path=srt_path,
