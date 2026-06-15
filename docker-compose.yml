@@ -39,7 +39,7 @@ services:
       - ./configs/app.toml:/app/configs/app.toml:ro
       - ./.env:/app/.env:ro       # 兼容应用内 load_dotenv()
       - ./logs:/app/logs          # 日志
-    command: ["uv", "run", "liveclip", "api", "serve", "--host", "0.0.0.0", "--port", "8000", "--config", "/app/configs/app.toml"]
+    command: ["/app/.venv/bin/liveclip", "api", "serve", "--host", "0.0.0.0", "--port", "8000", "--config", "/app/configs/app.toml"]
     restart: unless-stopped
 
 volumes:

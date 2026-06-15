@@ -6,7 +6,8 @@ ENV PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple \
     UV_DEFAULT_INDEX=https://pypi.tuna.tsinghua.edu.cn/simple \
     HF_ENDPOINT=https://hf-mirror.com \
     HUGGINGFACE_HUB_BASE_URL=https://hf-mirror.com \
-    HF_HUB_ENDPOINT=https://hf-mirror.com
+    HF_HUB_ENDPOINT=https://hf-mirror.com \
+    PYTHONPATH=/app/src
 
 # Use Tsinghua Debian mirrors for apt.
 RUN set -eux; \
@@ -52,4 +53,4 @@ RUN mkdir -p /app/data /app/cache /app/logs
 EXPOSE 8000
 
 # .env / data / cache are volume-mounted at runtime
-CMD ["uv", "run", "liveclip", "api", "serve", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["/app/.venv/bin/liveclip", "api", "serve", "--host", "0.0.0.0", "--port", "8000"]
