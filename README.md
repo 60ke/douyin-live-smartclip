@@ -333,6 +333,62 @@ uv run liveclip api serve --port 9000
 
 ---
 
+## Docker 部署
+
+`docker-compose.yml` 默认将容器内 `8000` 映射到宿主机 `9889`，适合 staging 环境通过 nginx 反向代理访问：
+
+```bash
+cp .env.example .env
+cp configs/app.example.toml configs/app.toml
+```
+
+编辑 `.env`，至少配置：
+
+```ini
+LIVECLIP_CONFIG=configs/app.toml
+LLM_API_KEY=sk-xxxxx
+LLM_MODEL=deepseek-ai/DeepSeek-V4-Flash
+LLM_BASE_URL=https://api.siliconflow.cn/v1/chat/completions
+DOUYIN_COOKIE=
+```
+
+确认 `configs/app.toml` 中 API 与内置 worker 配置：
+
+```toml
+[server]
+host = "0.0.0.0"
+port = 8000
+
+[worker]
+auto_start_with_api = true
+```
+
+启动：
+
+```bash
+docker compose up -d --build
+docker compose logs -f liveclip
+```
+
+验证：
+
+```bash
+curl http://127.0.0.1:9889/health
+curl 'http://127.0.0.1:9889/api/v1/live-rooms/?offset=0&limit=5'
+```
+
+运行数据会持久化到宿主机目录：
+
+```text
+./data   # SQLite 数据库、录制视频、字幕、切片结果
+./cache  # FunASR / Hugging Face / ModelScope 缓存
+./logs   # 日志
+```
+
+Dockerfile 已配置国内构建源：apt 使用清华 Debian 源，Python/uv 使用清华 PyPI 源，Hugging Face 默认使用 `https://hf-mirror.com`。基础镜像 `python:3.11-slim` 的拉取镜像源由服务器 Docker daemon 的 registry mirror 配置决定。
+
+---
+
 ### `liveclip db` — 数据库管理
 
 ```bash
