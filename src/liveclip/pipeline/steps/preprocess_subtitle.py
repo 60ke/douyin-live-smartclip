@@ -137,7 +137,7 @@ class PreprocessSubtitleStep(BaseStep):
 
             self._check_cancelled(ctx)
 
-            processed_srt_path = ctx.paths.subtitles_dir / f"run_{ctx.run_id}.srt"
+            processed_srt_path = ctx.paths.combined_srt_path
             write_srt_file(processed_srt_path, merged)
 
             sentences = subtitles_to_sentences(merged)

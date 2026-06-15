@@ -77,7 +77,7 @@ async def get_clips_by_recording(
         await session.commit()
         return []
 
-    subtitle_path = await _latest_subtitle_path(session, run.id)
+    subtitle_path = await _preferred_subtitle_path(session, run.id)
     result = await session.execute(
         select(Clip)
         .where(Clip.plan_id.in_(plan_ids))
@@ -226,15 +226,24 @@ async def _get_source_record(session: AsyncSession, run_id: int) -> Record | Non
     return records[0] if records else None
 
 
-async def _latest_subtitle_path(session: AsyncSession, run_id: int) -> str | None:
+async def _preferred_subtitle_path(session: AsyncSession, run_id: int) -> str | None:
     result = await session.execute(
         select(Subtitle)
         .where(Subtitle.run_id == run_id)
-        .order_by(Subtitle.id.desc())
-        .limit(1)
+        .order_by(Subtitle.id.asc())
     )
-    subtitle = result.scalar_one_or_none()
+    subtitles = list(result.scalars().all())
+    subtitle = _prefer_original_subtitle(subtitles)
     return subtitle.file_path if subtitle else None
+
+
+def _prefer_original_subtitle(subtitles: list[Subtitle]) -> Subtitle | None:
+    if not subtitles:
+        return None
+    for subtitle in subtitles:
+        if not subtitle.file_path.endswith("run_combine.srt"):
+            return subtitle
+    return subtitles[-1]
 
 
 def _build_recording_clip_response(

@@ -68,8 +68,8 @@ class RunPaths:
         return self.subtitles_dir / f"run_{self.run_id}.srt"
 
     @property
-    def raw_srt_path(self) -> Path:
-        return self.subtitles_dir / f"run_{self.run_id}.raw.srt"
+    def combined_srt_path(self) -> Path:
+        return self.subtitles_dir / "run_combine.srt"
 
     @property
     def words_json_path(self) -> Path:

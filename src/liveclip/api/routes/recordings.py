@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from liveclip.api.deps import get_db_session
@@ -39,7 +39,7 @@ async def list_room_recordings(
         return []
 
     run_ids = [record.run_id for record, _, _, _ in rows]
-    subtitles = await _latest_subtitles_by_run(session, run_ids)
+    subtitles = await _preferred_subtitles_by_run(session, run_ids)
     await session.commit()
 
     recordings: list[RecordingResponse] = []
@@ -96,29 +96,49 @@ async def list_run_subtitles(
 ) -> list[SubtitleResponse]:
     """获取某次运行生成的字幕文件。"""
     result = await session.execute(
-        select(Subtitle).where(Subtitle.run_id == run_id).order_by(Subtitle.created_at.desc())
+        select(Subtitle).where(Subtitle.run_id == run_id).order_by(Subtitle.id.asc())
     )
     subtitles = list(result.scalars().all())
     await session.commit()
-    return [SubtitleResponse.model_validate(subtitle) for subtitle in subtitles]
+    original_subtitles = _original_subtitles(subtitles)
+    return [SubtitleResponse.model_validate(subtitle) for subtitle in original_subtitles]
 
 
-async def _latest_subtitles_by_run(
+async def _preferred_subtitles_by_run(
     session: AsyncSession,
     run_ids: list[int],
 ) -> dict[int, str]:
     if not run_ids:
         return {}
 
-    latest_stmt = (
-        select(Subtitle.run_id, func.max(Subtitle.id).label("subtitle_id"))
-        .where(Subtitle.run_id.in_(run_ids))
-        .group_by(Subtitle.run_id)
-        .subquery()
-    )
     result = await session.execute(
         select(Subtitle)
-        .join(latest_stmt, Subtitle.id == latest_stmt.c.subtitle_id)
-        .order_by(Subtitle.id.desc())
+        .where(Subtitle.run_id.in_(run_ids))
+        .order_by(Subtitle.run_id.asc(), Subtitle.id.asc())
     )
-    return {subtitle.run_id: subtitle.file_path for subtitle in result.scalars().all()}
+    by_run: dict[int, list[Subtitle]] = {}
+    for subtitle in result.scalars().all():
+        by_run.setdefault(subtitle.run_id, []).append(subtitle)
+    return {
+        run_id: preferred.file_path
+        for run_id, subtitles in by_run.items()
+        if (preferred := _prefer_original_subtitle(subtitles)) is not None
+    }
+
+
+def _prefer_original_subtitle(subtitles: list[Subtitle]) -> Subtitle | None:
+    if not subtitles:
+        return None
+    for subtitle in subtitles:
+        if not subtitle.file_path.endswith("run_combine.srt"):
+            return subtitle
+    return subtitles[-1]
+
+
+def _original_subtitles(subtitles: list[Subtitle]) -> list[Subtitle]:
+    originals = [
+        subtitle
+        for subtitle in subtitles
+        if not subtitle.file_path.endswith("run_combine.srt")
+    ]
+    return originals or subtitles[-1:]

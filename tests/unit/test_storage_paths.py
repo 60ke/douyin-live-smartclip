@@ -35,8 +35,8 @@ class TestRunPaths:
         assert rp.raw_ts_path.name == "run_42.ts"
         assert rp.mp4_path.name == "run_42.mp4"
         assert rp.srt_path.name == "run_42.srt"
-        assert rp.raw_srt_path.name == "run_42.raw.srt"
-        assert rp.raw_srt_path != rp.srt_path
+        assert rp.combined_srt_path.name == "run_combine.srt"
+        assert rp.combined_srt_path != rp.srt_path
 
     def test_ensure_all_dirs(self, tmp_path: Path) -> None:
         rp = RunPaths(tmp_path, room_id=1, run_id=42)
