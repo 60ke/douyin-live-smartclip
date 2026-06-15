@@ -7,6 +7,7 @@
 - Python 3.11+
 - [uv](https://docs.astral.sh/uv/) 包管理器
 - FFmpeg（用于录制和视频切割）
+- MySQL 8.0
 
 ## 快速开始
 
@@ -29,6 +30,10 @@ cp configs/app.example.toml configs/app.toml
 
 ```ini
 LIVECLIP_CONFIG=configs/app.toml
+MYSQL_ROOT_PASSWORD=liveclip_root_password
+MYSQL_DATABASE=liveclip
+MYSQL_USER=liveclip
+MYSQL_PASSWORD=liveclip_password
 LLM_API_KEY=sk-xxxxx          # OpenAI 兼容的 API key
 LLM_MODEL=deepseek-ai/DeepSeek-V4-Flash   # 模型名称（可选）
 LLM_BASE_URL=https://api.siliconflow.cn/v1/chat/completions  # API 地址（可选）
@@ -335,7 +340,7 @@ uv run liveclip api serve --port 9000
 
 ## Docker 部署
 
-`docker-compose.yml` 默认将容器内 `8000` 映射到宿主机 `9889`，适合 staging 环境通过 nginx 反向代理访问：
+`docker-compose.yml` 会同时启动 MySQL 8.0 和 liveclip API。API 容器内 `8000` 默认映射到宿主机 `9889`，适合 staging 环境通过 nginx 反向代理访问：
 
 ```bash
 cp .env.example .env
@@ -346,18 +351,25 @@ cp configs/app.example.toml configs/app.toml
 
 ```ini
 LIVECLIP_CONFIG=configs/app.toml
+MYSQL_ROOT_PASSWORD=liveclip_root_password
+MYSQL_DATABASE=liveclip
+MYSQL_USER=liveclip
+MYSQL_PASSWORD=liveclip_password
 LLM_API_KEY=sk-xxxxx
 LLM_MODEL=deepseek-ai/DeepSeek-V4-Flash
 LLM_BASE_URL=https://api.siliconflow.cn/v1/chat/completions
 DOUYIN_COOKIE=
 ```
 
-确认 `configs/app.toml` 中 API 与内置 worker 配置：
+确认 `configs/app.toml` 中 MySQL、API 与内置 worker 配置。若修改 `.env` 中的 MySQL 账号密码，需要同步修改这里的连接串：
 
 ```toml
 [server]
 host = "0.0.0.0"
 port = 8000
+
+[database]
+url = "mysql+asyncmy://liveclip:liveclip_password@mysql:3306/liveclip?charset=utf8mb4"
 
 [worker]
 auto_start_with_api = true
@@ -380,9 +392,10 @@ curl 'http://127.0.0.1:9889/api/v1/live-rooms/?offset=0&limit=5'
 运行数据会持久化到宿主机目录：
 
 ```text
-./data   # SQLite 数据库、录制视频、字幕、切片结果
-./cache  # FunASR / Hugging Face / ModelScope 缓存
-./logs   # 日志
+mysql_data  # Docker volume，MySQL 8.0 数据
+./data      # 录制视频、字幕、切片结果等应用文件
+./cache     # FunASR / Hugging Face / ModelScope 缓存
+./logs      # 日志
 ```
 
 Dockerfile 已配置国内构建源：apt 使用清华 Debian 源，Python/uv 使用清华 PyPI 源，Hugging Face 默认使用 `https://hf-mirror.com`。基础镜像 `python:3.11-slim` 的拉取镜像源由服务器 Docker daemon 的 registry mirror 配置决定。
@@ -446,7 +459,7 @@ host = "0.0.0.0"
 port = 8000
 
 [database]
-url = "sqlite+aiosqlite:///./data/liveclip.db"
+url = "mysql+asyncmy://liveclip:liveclip_password@mysql:3306/liveclip?charset=utf8mb4"
 
 [storage]
 base_dir = "./data"

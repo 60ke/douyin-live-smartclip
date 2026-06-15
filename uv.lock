@@ -3,15 +3,6 @@ revision = 2
 requires-python = ">=3.11, <3.13"
 
 [[package]]
-name = "aiosqlite"
-version = "0.22.1"
-source = { registry = "https://mirrors.aliyun.com/pypi/simple/" }
-sdist = { url = "https://mirrors.aliyun.com/pypi/packages/4e/8a/64761f4005f17809769d23e518d915db74e6310474e733e3593cfc854ef1/aiosqlite-0.22.1.tar.gz", hash = "sha256:043e0bd78d32888c0a9ca90fc788b38796843360c855a7262a532813133a0650" }
-wheels = [
-    { url = "https://mirrors.aliyun.com/pypi/packages/00/b7/e3bf5133d697a08128598c8d0abc5e16377b51465a33756de24fa7dee953/aiosqlite-0.22.1-py3-none-any.whl", hash = "sha256:21c002eb13823fad740196c5a2e9d8e62f6243bd9e7e4a1f87fb5e44ecb4fceb" },
-]
-
-[[package]]
 name = "alembic"
 version = "1.18.4"
 source = { registry = "https://mirrors.aliyun.com/pypi/simple/" }
@@ -106,6 +97,30 @@ wheels = [
     { url = "https://mirrors.aliyun.com/pypi/packages/dd/51/5b840c4df7334104cecffa28f23904fe81ca89ca223d2450e288de39fd3c/ast_serialize-0.5.0-cp39-abi3-win32.whl", hash = "sha256:143a4ef63285a075871908fda3672dc21864b83a8ec3ee12304aa3e4c5387b9a" },
     { url = "https://mirrors.aliyun.com/pypi/packages/41/11/ca5672c7d491825bc4cd6702dea106a6b60d928707712ec257c7833ae476/ast_serialize-0.5.0-cp39-abi3-win_amd64.whl", hash = "sha256:cf25572c526add400f26a4750dc6ce0c3bb93fc1f75e7ae0cad4ce4f2cd5c590" },
     { url = "https://mirrors.aliyun.com/pypi/packages/45/19/cc8bd127d28a43da249aa955cfd164cf8fd534e79e42cea96c4854d72fd0/ast_serialize-0.5.0-cp39-abi3-win_arm64.whl", hash = "sha256:92a31c9c20d25a076edaeec76b128a3535d74a24f340b9a8a7e96c9b86dc9642" },
+]
+
+[[package]]
+name = "asyncmy"
+version = "0.2.11"
+source = { registry = "https://mirrors.aliyun.com/pypi/simple/" }
+sdist = { url = "https://mirrors.aliyun.com/pypi/packages/78/3c/d8297584c40f3d1af55365026bcdca7844ecfea1d917ad19df48f8331a26/asyncmy-0.2.11.tar.gz", hash = "sha256:c3d65d959dde62c911e39ecd1ad0f1339a5e6929fc411d48cfc2f82846190bf4" }
+wheels = [
+    { url = "https://mirrors.aliyun.com/pypi/packages/cb/58/ec29057913334cacaa2be98eacb21ad468bc58214ff25aab28b78487d697/asyncmy-0.2.11-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:6b324b70438120cabdb1b0d8789082b8a2770257e7beaa7d036322ba5f603f25" },
+    { url = "https://mirrors.aliyun.com/pypi/packages/7e/46/7939167e05143c8feba1812dbdd478579d215d4b6d7f84856981ab71db7c/asyncmy-0.2.11-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:919811ec4157506632a354047b943b995c71f31182d430ab87c60ccee844c1d9" },
+    { url = "https://mirrors.aliyun.com/pypi/packages/1f/a0/5cfc1bdeb6166ea26eac97d3cefb574d490aabc052478a3f65730b7379d9/asyncmy-0.2.11-cp311-cp311-manylinux_2_17_i686.manylinux_2_5_i686.manylinux1_i686.manylinux2014_i686.whl", hash = "sha256:8f416fba944dad20d47eb9a4db1a1853a0f7856b12b0a3b52c1a2fba2f447851" },
+    { url = "https://mirrors.aliyun.com/pypi/packages/0e/37/d9bda68844e6741a7e7e1e449da6cc7926b7ccbf11af26a806b19fd7e7ae/asyncmy-0.2.11-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:905a6693e3dbaf4280dfced96131bada108554754df40d75a7ff91961ba7331a" },
+    { url = "https://mirrors.aliyun.com/pypi/packages/57/da/358b6e50148a808e05963acd2ae47c1fbef4cdead0157ce2fc90fd4ecf7d/asyncmy-0.2.11-cp311-cp311-musllinux_1_2_i686.whl", hash = "sha256:ff3ac9feb09e4e80c227280f6350c8015cfed018efe9090f41e2fb4ab8cbf163" },
+    { url = "https://mirrors.aliyun.com/pypi/packages/e9/e8/6b11d62b0e164adbff5ed882d650c8b60fa710001965c54c70c77cffc941/asyncmy-0.2.11-cp311-cp311-musllinux_1_2_x86_64.whl", hash = "sha256:be18725eeccb616b5769ed8cbcabb2758a47e162c4232d7bef98b978950228ad" },
+    { url = "https://mirrors.aliyun.com/pypi/packages/34/6b/d28fe93160900aba9573cbbf9be5291ac2f1a37eab4fd85e366d5ecbfd84/asyncmy-0.2.11-cp311-cp311-win32.whl", hash = "sha256:d32e03278b72f7ef80c0692797e0ce1c03a63ac0192f858d804a6ecd471754e3" },
+    { url = "https://mirrors.aliyun.com/pypi/packages/09/29/39effc0c56fea76b695490b95df0da4dd0b6f040ed160ad40740e1358265/asyncmy-0.2.11-cp311-cp311-win_amd64.whl", hash = "sha256:adfe7d271f9ef52c5f96ffd716ed7726839ec7c39fccf98748803f871b399dbd" },
+    { url = "https://mirrors.aliyun.com/pypi/packages/ca/93/3b4c7f9b35a27e80bd2f305c4c8d7ae56b6dd40d616d34dd4dbb818c90c9/asyncmy-0.2.11-cp312-cp312-macosx_10_13_x86_64.whl", hash = "sha256:914dddd2ba884822a304297f6ca96026548a100339a4e0ca5c427f6cfa3e4b62" },
+    { url = "https://mirrors.aliyun.com/pypi/packages/7b/65/c70b2b8d014b21504de7e2027e2456f7774cec855766ec1808da47d70b24/asyncmy-0.2.11-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:5ea7ca4bcf7747b1fd4e80f16aa461972e0931cecd3bc43a3ba8e14a5d368a98" },
+    { url = "https://mirrors.aliyun.com/pypi/packages/65/a9/f326999a1ffacc7738376fa68c7ede164db9e5520bb4dbd35f1fdd5704dd/asyncmy-0.2.11-cp312-cp312-manylinux_2_17_i686.manylinux_2_5_i686.manylinux1_i686.manylinux2014_i686.whl", hash = "sha256:b2fd6e04efca56d9176e7b620ee47dd1dd334e2eb03c1ae1580954c2625b99d1" },
+    { url = "https://mirrors.aliyun.com/pypi/packages/b5/f2/634326efc5fca15620eb106194d2287997a31625dc95f1940a3cef2f80a7/asyncmy-0.2.11-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:4df583dd9d09e817c4cc68b706133d5da453faf56da431a24fcdd64b9552e26b" },
+    { url = "https://mirrors.aliyun.com/pypi/packages/35/7f/4ecd2dcee1d13d49a301ab8ee11a33c75ded4b3089bdb7bf5fb385ed162d/asyncmy-0.2.11-cp312-cp312-musllinux_1_2_i686.whl", hash = "sha256:b2d473b683db7fa1acb167a4bc25ea38e398c991427bd8aa708a9b75059a1d33" },
+    { url = "https://mirrors.aliyun.com/pypi/packages/fe/3e/d94fc4a0ca1e2e492982db607c26b48a95ba668e24755f3bf00da68ae9be/asyncmy-0.2.11-cp312-cp312-musllinux_1_2_x86_64.whl", hash = "sha256:d03803975e5dfe74ef4af18411da3716681fde78a65a8758237e7e3e4a342ba1" },
+    { url = "https://mirrors.aliyun.com/pypi/packages/1e/06/d1bb47ce9ed32ba02f2ff44118d5eb36702d38f97cd824bd6a51d3decfdf/asyncmy-0.2.11-cp312-cp312-win32.whl", hash = "sha256:564fc38b3a0665663b8b2ec35fc34fd2768688ba5c869a0d8bd1eb57b85351b2" },
+    { url = "https://mirrors.aliyun.com/pypi/packages/74/d8/973c576c84f4b706a45372c959778feca6842033ccbbd26b2bfe344ebc4b/asyncmy-0.2.11-cp312-cp312-win_amd64.whl", hash = "sha256:84e23466602407da7e126fb5f2da2948c69a6f0d40d4ea7771331771e05c1c2e" },
 ]
 
 [[package]]
@@ -830,8 +845,8 @@ name = "liveclip-server"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
-    { name = "aiosqlite" },
     { name = "alembic" },
+    { name = "asyncmy" },
     { name = "fastapi" },
     { name = "funasr" },
     { name = "greenlet" },
@@ -866,8 +881,8 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "aiosqlite", specifier = ">=0.20.0" },
     { name = "alembic", specifier = ">=1.14.0" },
+    { name = "asyncmy", specifier = ">=0.2.10" },
     { name = "fastapi", specifier = ">=0.115.0" },
     { name = "funasr", specifier = ">=1.2.6" },
     { name = "greenlet", specifier = ">=3.0.0" },

@@ -1,10 +1,36 @@
 services:
+  mysql:
+    image: mysql:8.0
+    container_name: liveclip-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-liveclip_root_password}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-liveclip}
+      MYSQL_USER: ${MYSQL_USER:-liveclip}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-liveclip_password}
+      TZ: Asia/Shanghai
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-time-zone=+08:00
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uliveclip -p$${MYSQL_PASSWORD} --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    restart: unless-stopped
+
   liveclip:
     build: .
     image: liveclip:latest
     container_name: liveclip-server
     env_file:
       - .env
+    depends_on:
+      mysql:
+        condition: service_healthy
     ports:
       - "9889:8000"
     volumes:
@@ -15,3 +41,6 @@ services:
       - ./logs:/app/logs          # 日志
     command: ["uv", "run", "liveclip", "api", "serve", "--host", "0.0.0.0", "--port", "8000", "--config", "/app/configs/app.toml"]
     restart: unless-stopped
+
+volumes:
+  mysql_data:

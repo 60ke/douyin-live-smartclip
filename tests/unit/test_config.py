@@ -42,7 +42,7 @@ class TestDatabaseConfig:
 
     def test_defaults(self) -> None:
         config = DatabaseConfig()
-        assert "sqlite" in config.url
+        assert config.url.startswith("mysql+asyncmy://")
 
 
 class TestStorageConfig:

@@ -1,4 +1,4 @@
-"""基于文件的分布式锁机制（适配 SQLite 单机部署）。"""
+"""基于文件的运行锁机制（防止同一 run 被重复执行）。"""
 
 from __future__ import annotations
 

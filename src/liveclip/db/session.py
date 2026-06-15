@@ -18,7 +18,12 @@ async_session_factory: async_sessionmaker[AsyncSession] | None = None
 def init_db(database_url: str) -> None:
     """创建异步引擎和会话工厂。"""
     global engine, async_session_factory  # noqa: PLW0603
-    engine = create_async_engine(database_url, echo=False)
+    engine = create_async_engine(
+        database_url,
+        echo=False,
+        pool_pre_ping=True,
+        pool_recycle=3600,
+    )
     async_session_factory = async_sessionmaker(engine, expire_on_commit=False)
 
 

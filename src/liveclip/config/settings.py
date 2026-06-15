@@ -18,7 +18,7 @@ class ServerConfig(BaseModel):
 class DatabaseConfig(BaseModel):
     """Database connection configuration."""
 
-    url: str = "sqlite+aiosqlite:///./data/liveclip.db"
+    url: str = "mysql+asyncmy://liveclip:liveclip_password@mysql:3306/liveclip?charset=utf8mb4"
 
 
 class StorageConfig(BaseModel):
