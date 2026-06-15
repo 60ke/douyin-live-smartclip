@@ -25,8 +25,9 @@ RUN set -eux; \
           /etc/apt/sources.list; \
     fi
 
-# system deps (ffmpeg for recording/export)
+# system deps (ffmpeg for recording/export; build tools for source-only wheels on arm64)
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
     ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
