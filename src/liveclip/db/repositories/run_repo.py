@@ -18,6 +18,17 @@ class TaskRunRepository(BaseRepository[TaskRun]):
     def __init__(self) -> None:
         super().__init__(TaskRun)
 
+    async def get_all(self, session: AsyncSession, offset: int = 0, limit: int = 100) -> list[TaskRun]:
+        """获取运行列表，最新运行优先。"""
+        stmt = (
+            select(self.model)
+            .order_by(self.model.created_at.desc(), self.model.id.desc())
+            .offset(offset)
+            .limit(limit)
+        )
+        result = await session.execute(stmt)
+        return list(result.scalars().all())
+
     async def pick_next_pending_run(self, session: AsyncSession) -> TaskRun | None:
         """获取下一个待执行的 PENDING 运行。
 
