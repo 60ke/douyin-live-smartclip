@@ -314,19 +314,27 @@ class RunService:
         self._session.add(clip_plan)
         await self._session.flush()  # 需要 plan_id
 
+        source_record = await self._get_source_record(step.run_id)
+
         # 创建每个 Clip 记录
         for idx, clip_data in enumerate(summary_data.get("clips", [])):
             scores = plan_scores.get(idx, {})
+            parts = clip_data.get("parts") or []
             self._session.add(
                 Clip(
                     plan_id=clip_plan.id,
+                    source_record_id=source_record.id if source_record else None,
                     title=clip_data.get("title", f"切片{clip_data.get('index', '')}"),
-                    start_subtitle_index=scores.get("start_subtitle_index", 0),
-                    end_subtitle_index=scores.get("end_subtitle_index", 0),
-                    score=scores.get("score", 0.0),
-                    structure_score=scores.get("structure_score", 0.0),
-                    reason=scores.get("reason", ""),
-                    structure_reason=scores.get("structure_reason", ""),
+                    start_subtitle_index=_metadata_int(scores, "start_subtitle_index") or 0,
+                    end_subtitle_index=_metadata_int(scores, "end_subtitle_index") or 0,
+                    parts_json=json.dumps(parts, ensure_ascii=False) if parts else None,
+                    start_seconds=_metadata_float(clip_data, "start_time"),
+                    end_seconds=_metadata_float(clip_data, "end_time"),
+                    duration_seconds=_metadata_float(clip_data, "duration_seconds"),
+                    score=_metadata_float(scores, "score") or 0.0,
+                    structure_score=_metadata_float(scores, "structure_score") or 0.0,
+                    reason=str(scores.get("reason") or ""),
+                    structure_reason=str(scores.get("structure_reason") or ""),
                     status="COMPLETED",
                     output_path=clip_data.get("clip_path"),
                     subtitle_output_path=clip_data.get("subtitle_path"),
@@ -339,6 +347,16 @@ class RunService:
             plan_id=clip_plan.id,
             clip_count=summary_data.get("total", 0),
         )
+
+    async def _get_source_record(self, run_id: int) -> Record | None:
+        """Return the canonical source video for a run, preferring converted MP4."""
+        stmt = select(Record).where(Record.run_id == run_id).order_by(Record.id.desc())
+        result = await self._session.execute(stmt)
+        records = list(result.scalars().all())
+        for record in records:
+            if record.format == "mp4":
+                return record
+        return records[0] if records else None
 
     @staticmethod
     def _load_plan_scores(plan_dir: Path) -> dict[int, dict[str, object]]:
@@ -375,6 +393,20 @@ def _metadata_int(metadata: dict[str, object] | None, key: str) -> int | None:
         return int(value)
     if isinstance(value, str) and value.isdigit():
         return int(value)
+    return None
+
+
+def _metadata_float(metadata: dict[str, object] | None, key: str) -> float | None:
+    if not metadata:
+        return None
+    value = metadata.get(key)
+    if isinstance(value, int | float):
+        return float(value)
+    if isinstance(value, str):
+        try:
+            return float(value)
+        except ValueError:
+            return None
     return None
 
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import ForeignKey, String, func
+from sqlalchemy import Float, ForeignKey, String, func
 from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
@@ -218,7 +218,13 @@ class Clip(Base):
     title: Mapped[str] = mapped_column(String(512), nullable=False)
     start_subtitle_index: Mapped[int] = mapped_column(nullable=False)
     end_subtitle_index: Mapped[int] = mapped_column(nullable=False)
+    source_record_id: Mapped[int | None] = mapped_column(
+        ForeignKey("records.id"), nullable=True, default=None
+    )
     parts_json: Mapped[str | None] = mapped_column(String(16384), nullable=True, default=None)
+    start_seconds: Mapped[float | None] = mapped_column(Float, nullable=True, default=None)
+    end_seconds: Mapped[float | None] = mapped_column(Float, nullable=True, default=None)
+    duration_seconds: Mapped[float | None] = mapped_column(Float, nullable=True, default=None)
     score: Mapped[float] = mapped_column(nullable=False, default=0.0)
     structure_score: Mapped[float] = mapped_column(nullable=False, default=0.0)
     reason: Mapped[str] = mapped_column(String(2048), nullable=False, default="")
@@ -231,6 +237,7 @@ class Clip(Base):
     created_at: Mapped[datetime] = mapped_column(server_default=func.now(), init=False)
 
     plan: Mapped[ClipPlan] = relationship(back_populates="clips", init=False)
+    source_record: Mapped[Record | None] = relationship(init=False)
 
 
 # ---------------------------------------------------------------------------

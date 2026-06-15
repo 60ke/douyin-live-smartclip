@@ -7,7 +7,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from liveclip.api.deps import get_db_session
-from liveclip.db.models import Record, Subtitle, Task, TaskRun
+from liveclip.db.models import LiveRoom, Record, Subtitle, Task, TaskRun
 from liveclip.observability import get_logger
 from liveclip.schemas.record import RecordResponse
 from liveclip.schemas.recording import RecordingResponse
@@ -24,9 +24,10 @@ async def list_room_recordings(
 ) -> list[RecordingResponse]:
     """获取某个直播间已生成的 MP4 视频录制文件。"""
     stmt = (
-        select(Record, TaskRun, Task)
+        select(Record, TaskRun, Task, LiveRoom)
         .join(TaskRun, TaskRun.id == Record.run_id)
         .join(Task, Task.id == TaskRun.task_id)
+        .join(LiveRoom, LiveRoom.id == Task.room_id)
         .where(Task.room_id == room_id, Record.format == "mp4")
         .order_by(Record.created_at.desc(), Record.id.desc())
     )
@@ -37,18 +38,21 @@ async def list_room_recordings(
         await session.commit()
         return []
 
-    run_ids = [record.run_id for record, _, _ in rows]
+    run_ids = [record.run_id for record, _, _, _ in rows]
     subtitles = await _latest_subtitles_by_run(session, run_ids)
     await session.commit()
 
     recordings: list[RecordingResponse] = []
-    for record, run, _ in rows:
+    for record, run, task, room in rows:
         try:
             recordings.append(
                 RecordingResponse(
                     id=record.id,
                     run_id=record.run_id,
-                    task_id=run.task_id,
+                    task_id=task.id,
+                    room_id=room.id,
+                    room_name=room.name,
+                    room_url=room.url,
                     run_status=str(run.run_status),
                     error_message=run.error_message,
                     file_path=record.file_path,
@@ -56,6 +60,8 @@ async def list_room_recordings(
                     duration_seconds=record.duration_seconds or 0.0,
                     format=record.format or "mp4",
                     subtitle_file_path=subtitles.get(record.run_id),
+                    live_started_at=run.started_at,
+                    live_finished_at=run.finished_at,
                     created_at=record.created_at,
                 )
             )
@@ -116,4 +122,3 @@ async def _latest_subtitles_by_run(
         .order_by(Subtitle.id.desc())
     )
     return {subtitle.run_id: subtitle.file_path for subtitle in result.scalars().all()}
-

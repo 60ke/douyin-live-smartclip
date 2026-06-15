@@ -76,10 +76,14 @@ class ClipService:
         """根据分段字典创建切片。"""
         clip = Clip(
             plan_id=plan_id,
+            source_record_id=segment.get("source_record_id"),
             title=segment.get("title", "未命名片段"),
             start_subtitle_index=segment.get("start_subtitle_index", 0),
             end_subtitle_index=segment.get("end_subtitle_index", 0),
             parts_json=json.dumps(segment.get("parts", []), ensure_ascii=False),
+            start_seconds=segment.get("start_seconds") or segment.get("start_time"),
+            end_seconds=segment.get("end_seconds") or segment.get("end_time"),
+            duration_seconds=segment.get("duration_seconds"),
             score=segment.get("score", 0.0),
             structure_score=segment.get("structure_score", 0.0),
             reason=segment.get("reason", ""),

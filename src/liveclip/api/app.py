@@ -9,6 +9,8 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from sqlalchemy import inspect, text
+from sqlalchemy.engine import Connection
 
 from liveclip.api.routes import (
     clips_router,
@@ -95,6 +97,7 @@ def create_app(settings: AppSettings | None = None) -> FastAPI:
             raise RuntimeError("数据库未初始化，请先调用 init_db()")
         async with db_session.engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+            await conn.run_sync(_ensure_productized_clip_columns)
         ensure_directories(settings)
         logger.info("应用启动完成", database_url=settings.database.url)
         if settings.worker.auto_start_with_api:
@@ -106,6 +109,25 @@ def create_app(settings: AppSettings | None = None) -> FastAPI:
         await _stop_embedded_worker(app, settings)
 
     return app
+
+
+def _ensure_productized_clip_columns(connection: Connection) -> None:
+    """补齐早期 MVP 数据库缺失的切片映射字段。"""
+    inspector = inspect(connection)
+    table_names = set(inspector.get_table_names())
+    if "clips" not in table_names:
+        return
+
+    existing = {column["name"] for column in inspector.get_columns("clips")}
+    columns = {
+        "source_record_id": "ALTER TABLE clips ADD COLUMN source_record_id INT NULL",
+        "start_seconds": "ALTER TABLE clips ADD COLUMN start_seconds DOUBLE NULL",
+        "end_seconds": "ALTER TABLE clips ADD COLUMN end_seconds DOUBLE NULL",
+        "duration_seconds": "ALTER TABLE clips ADD COLUMN duration_seconds DOUBLE NULL",
+    }
+    for name, ddl in columns.items():
+        if name not in existing:
+            connection.execute(text(ddl))
 
 
 async def _start_embedded_worker(app: FastAPI, settings: AppSettings) -> None:
