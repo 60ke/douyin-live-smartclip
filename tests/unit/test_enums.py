@@ -35,6 +35,7 @@ class TestRunStatus:
     def test_specific_values(self) -> None:
         assert RunStatus.PENDING == "PENDING"
         assert RunStatus.RUNNING == "RUNNING"
+        assert RunStatus.WAITING == "WAITING"
         assert RunStatus.SUCCEEDED == "SUCCEEDED"
         assert RunStatus.FAILED == "FAILED"
         assert RunStatus.CANCELED == "CANCELED"

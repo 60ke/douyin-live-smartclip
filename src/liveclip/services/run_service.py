@@ -114,6 +114,23 @@ class RunService:
         await self._session.flush()
         logger.info("运行已成功", run_id=run_id)
 
+    async def mark_waiting(self, run_id: int, error_code: str, error_message: str) -> None:
+        """将循环检测运行状态设为 WAITING，表示直播间暂未开播。"""
+        run = await self._repo.get_by_id(self._session, run_id)
+        if run is None:
+            raise ValueError(f"TaskRun id={run_id} 不存在")
+        run.run_status = str(RunStatus.WAITING)
+        run.finished_at = datetime.now()
+        run.error_code = error_code
+        run.error_message = error_message
+        await self._session.flush()
+        logger.info(
+            "运行等待开播",
+            run_id=run_id,
+            error_code=error_code,
+            error_message=error_message,
+        )
+
     async def mark_failed(self, run_id: int, error_code: str, error_message: str) -> None:
         """将运行状态设为 FAILED，记录错误信息。"""
         run = await self._repo.get_by_id(self._session, run_id)
@@ -207,15 +224,27 @@ class RunService:
             error_code=error_code,
         )
 
-    async def mark_step_skipped(self, step_id: int) -> None:
+    async def mark_step_skipped(
+        self,
+        step_id: int,
+        error_code: str | None = None,
+        error_message: str | None = None,
+    ) -> None:
         """将步骤状态设为 SKIPPED。"""
         step = await self._session.get(TaskStep, step_id)
         if step is None:
             raise ValueError(f"TaskStep id={step_id} 不存在")
         step.step_status = str(StepStatus.SKIPPED)
         step.finished_at = datetime.now()
+        step.error_code = error_code
+        step.error_message = error_message
         await self._session.flush()
-        logger.info("步骤已跳过", step_id=step_id, step_name=step.step_name)
+        logger.info(
+            "步骤已跳过",
+            step_id=step_id,
+            step_name=step.step_name,
+            error_code=error_code,
+        )
 
     async def _sync_step_artifact(
         self,

@@ -24,6 +24,7 @@ class RunStatus(_StrEnum):
 
     PENDING = "PENDING"
     RUNNING = "RUNNING"
+    WAITING = "WAITING"
     SUCCEEDED = "SUCCEEDED"
     FAILED = "FAILED"
     CANCELED = "CANCELED"

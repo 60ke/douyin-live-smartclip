@@ -21,7 +21,7 @@ from liveclip.domain.models import (
     PipelineConfig,
     RecordConfig,
 )
-from liveclip.exceptions import RUN_HEARTBEAT_TIMEOUT
+from liveclip.exceptions import LIVE_ROOM_NOT_LIVE, RUN_HEARTBEAT_TIMEOUT
 from liveclip.pipeline.context import PipelineContext
 from liveclip.pipeline.state_machine import get_enabled_steps
 from liveclip.schemas.run import RunCreate
@@ -223,7 +223,7 @@ class WorkerRunner:
             pipeline_config = ctx.pipeline_config
             enabled_steps = get_enabled_steps(pipeline_config)
 
-            for step_name in enabled_steps:
+            for index, step_name in enumerate(enabled_steps):
                 if self._shutdown_flag:
                     logger.info("worker_shutting_down_cancel_run", run_id=run.id)
                     ctx.request_cancel()
@@ -249,6 +249,28 @@ class WorkerRunner:
                 ctx.set_step_result(str(step_name), result)
 
                 if not result.success:
+                    if result.error_code == LIVE_ROOM_NOT_LIVE and self._is_loop_context(ctx):
+                        for skipped_step_name in enabled_steps[index + 1 :]:
+                            skipped_step = step_map.get(str(skipped_step_name))
+                            if skipped_step is not None:
+                                await run_service.mark_step_skipped(
+                                    skipped_step.id,
+                                    error_code=LIVE_ROOM_NOT_LIVE,
+                                    error_message="直播间暂未开播，本次检测不执行后续步骤",
+                                )
+                        await run_service.mark_waiting(
+                            run.id,
+                            error_code=LIVE_ROOM_NOT_LIVE,
+                            error_message="直播间暂未开播，循环录制将继续自动检测",
+                        )
+                        await session.commit()
+                        logger.info(
+                            "run_waiting_for_live",
+                            run_id=run.id,
+                            step_name=str(step_name),
+                        )
+                        return
+
                     # 步骤失败，标记运行为 FAILED
                     await run_service.mark_failed(
                         run.id,
@@ -391,7 +413,8 @@ class WorkerRunner:
         if latest_run is None:
             return True
         interval_seconds = self._get_check_interval_seconds(task, config)
-        return datetime.utcnow() - latest_run.created_at >= timedelta(seconds=interval_seconds)
+        last_checked_at = latest_run.finished_at or latest_run.created_at
+        return datetime.now() - last_checked_at >= timedelta(seconds=interval_seconds)
 
     async def _scheduled_task_due(
         self,
@@ -522,6 +545,10 @@ class WorkerRunner:
             # 注入直播间元数据
             ctx.metadata["room_url"] = room.url
             ctx.metadata["room_name"] = room.name
+            ctx.metadata["task_type"] = task.task_type
+            ctx.metadata["task_mode"] = self._parse_scheduler_config(
+                task.pipeline_config_json
+            ).get("task_mode")
             douyin_cookie = os.environ.get(self._settings.douyin.cookie_env)
             if douyin_cookie:
                 ctx.metadata["cookie"] = douyin_cookie
@@ -540,6 +567,13 @@ class WorkerRunner:
             except (json.JSONDecodeError, TypeError):
                 logger.warning("pipeline_config_parse_failed", config_json=config_json)
         return PipelineConfig()
+
+    @staticmethod
+    def _is_loop_context(ctx: PipelineContext) -> bool:
+        return (
+            ctx.metadata.get("task_type") == str(TaskType.CRON)
+            or ctx.metadata.get("task_mode") == "LOOP"
+        )
 
     @staticmethod
     def _merge_pipeline_config(base: PipelineConfig, override: PipelineConfig) -> PipelineConfig:

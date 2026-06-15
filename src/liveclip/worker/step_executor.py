@@ -20,7 +20,7 @@ from liveclip.adapters.funasr.transcriber import FunASRTranscriber
 from liveclip.adapters.llm.client import LLMClient
 from liveclip.domain.enums import StepName
 from liveclip.domain.models import StepResult
-from liveclip.exceptions import WorkerError
+from liveclip.exceptions import LIVE_ROOM_NOT_LIVE, WorkerError
 from liveclip.pipeline.context import PipelineContext
 from liveclip.pipeline.steps.base import BaseStep
 from liveclip.pipeline.steps.convert_mp4 import ConvertMp4Step
@@ -160,8 +160,12 @@ class StepExecutor:
             # 未预期的异常
             error_code = getattr(exc, "error_code", "UNKNOWN")
             error_message = str(exc)
-            await run_service.mark_step_failed(step.id, error_code, error_message)
-            log.error("step_exception", error=str(exc))
+            if step_name == StepName.RECORD_TS and error_code == LIVE_ROOM_NOT_LIVE:
+                await run_service.mark_step_skipped(step.id, error_code, error_message)
+                log.info("live_room_waiting", error_code=error_code, error_message=error_message)
+            else:
+                await run_service.mark_step_failed(step.id, error_code, error_message)
+                log.error("step_exception", error=str(exc))
             result = StepResult(
                 success=False,
                 error_code=error_code,
