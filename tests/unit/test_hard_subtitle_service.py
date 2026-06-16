@@ -49,6 +49,7 @@ def test_hard_subtitle_renderer_writes_ass_and_invokes_ffmpeg(tmp_path: Path) ->
     ass_text = result.ass_path.read_text(encoding="utf-8")
     assert "PlayResX: 544" in ass_text
     assert "PlayResY: 960" in ass_text
+    assert "Noto Sans CJK SC" in ass_text
     assert r"\N" in ass_text
     assert output.exists()
     ffmpeg_cmd = commands[1]

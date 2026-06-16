@@ -13,6 +13,10 @@ from liveclip.exceptions import EXPORT_CLIP_FAILED, ExportError
 from liveclip.observability import get_logger
 from liveclip.pipeline.context import PipelineContext
 from liveclip.pipeline.steps.base import BaseStep
+from liveclip.services.clip_post_process_service import (
+    ClipPostProcessService,
+    options_from_pipeline_config,
+)
 from liveclip.storage.local import LocalStorage
 from liveclip.storage.paths import sanitize_filename
 from liveclip.subtitle.parser import parse_srt_file
@@ -85,6 +89,16 @@ class ExportClipsStep(BaseStep):
                 "failed_clips": failed,
             }
             summary_path = ctx.paths.clips_dir / "export_summary.json"
+            postprocess_options = options_from_pipeline_config(
+                ctx.pipeline_config,
+                base_dir=ctx.paths.base_dir,
+            )
+            if postprocess_options.enabled:
+                summary = ClipPostProcessService().process_summary(
+                    export_summary=summary,
+                    clips_dir=ctx.paths.clips_dir,
+                    options=postprocess_options,
+                )
             LocalStorage.write_json(summary_path, summary)
 
             elapsed = time.monotonic_ns() // 1_000_000 - start_ms

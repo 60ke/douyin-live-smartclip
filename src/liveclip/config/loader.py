@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 import tomllib
 from pathlib import Path
 from typing import Any
@@ -80,8 +81,31 @@ def ensure_directories(settings: AppSettings) -> None:
 
     # Ensure common sub-directories under storage.base_dir
     base = settings.storage.base_dir.resolve()
-    for subdir in ("raw", "media", "subtitles", "preprocess", "plans", "clips", "logs"):
+    for subdir in (
+        "raw",
+        "media",
+        "subtitles",
+        "preprocess",
+        "plans",
+        "clips",
+        "logs",
+        "cover_templates",
+    ):
         dirs_to_create.append(base / subdir)
 
     for d in dirs_to_create:
         d.mkdir(parents=True, exist_ok=True)
+
+    _sync_builtin_cover_templates(base / "cover_templates")
+
+
+def _sync_builtin_cover_templates(target_dir: Path) -> None:
+    """Copy built-in cover templates into storage for API media access."""
+    source_dir = Path(__file__).resolve().parents[3] / "assets" / "cover_templates"
+    if not source_dir.exists():
+        return
+    for source in source_dir.iterdir():
+        if source.is_file():
+            target = target_dir / source.name
+            if not target.exists() or source.stat().st_size != target.stat().st_size:
+                shutil.copy2(source, target)

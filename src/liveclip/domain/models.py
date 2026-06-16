@@ -29,6 +29,9 @@ class PipelineConfig(BaseModel):
     validate_boundary: bool = True
     validate_boundary_use_llm: bool = False
     export_clips: bool = True
+    hard_subtitle: dict[str, object] | bool | None = None
+    cover: dict[str, object] | bool | None = None
+    highlight_intro: dict[str, object] | bool | None = None
 
 
 class ClipSegmentConfig(BaseModel):

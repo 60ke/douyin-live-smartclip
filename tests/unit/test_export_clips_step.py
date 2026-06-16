@@ -12,6 +12,7 @@ from liveclip.domain.models import (
 )
 from liveclip.pipeline.context import PipelineContext
 from liveclip.pipeline.steps.export_clips import ExportClipsStep
+from liveclip.services.clip_post_process_service import options_from_pipeline_config
 from liveclip.storage.paths import RunPaths
 
 
@@ -205,3 +206,17 @@ def test_prepare_clips_dir_removes_stale_media(tmp_path) -> None:
     assert not (tmp_path / "old.mp4.part").exists()
     assert not (tmp_path / "old_concat.txt").exists()
     assert summary.exists()
+
+
+def test_postprocess_options_resolves_relative_cover_path_to_storage_base(tmp_path) -> None:
+    config = PipelineConfig(
+        cover={
+            "enabled": True,
+            "source_image_path": "cover_templates/default.jpg",
+        }
+    )
+
+    options = options_from_pipeline_config(config, base_dir=tmp_path)
+
+    assert options.cover_enabled is True
+    assert options.cover_image_path == tmp_path / "cover_templates/default.jpg"

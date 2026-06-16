@@ -49,6 +49,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # source
 COPY src/ ./src/
 COPY configs/ ./configs/
+COPY assets/ ./assets/
 COPY alembic/ ./alembic/
 COPY alembic.ini ./
 

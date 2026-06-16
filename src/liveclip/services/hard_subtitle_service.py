@@ -31,7 +31,7 @@ class HardSubtitleRenderer:
         self,
         *,
         ffmpeg_binary: str = "ffmpeg",
-        font_name: str = "PingFang SC",
+        font_name: str = "Noto Sans CJK SC",
         command_runner: CommandRunner = run_command,
     ) -> None:
         self._ffmpeg_binary = ffmpeg_binary

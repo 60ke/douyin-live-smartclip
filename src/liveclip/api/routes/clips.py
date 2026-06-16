@@ -285,6 +285,17 @@ async def _backfill_clips_from_disk(
                 status="COMPLETED",
                 output_path=clip_data.get("clip_path"),
                 subtitle_output_path=clip_data.get("subtitle_path"),
+                cover_title=clip_data.get("cover_title"),
+                cover_source_image_path=clip_data.get("cover_source_image_path"),
+                cover_image_path=clip_data.get("cover_image_path"),
+                cover_intro_video_path=clip_data.get("cover_intro_video_path"),
+                highlight_enabled=bool(clip_data.get("highlight_enabled", False)),
+                highlight_start_seconds=_metadata_float(clip_data, "highlight_start_seconds"),
+                highlight_end_seconds=_metadata_float(clip_data, "highlight_end_seconds"),
+                highlight_reason=clip_data.get("highlight_reason"),
+                highlight_confidence=_metadata_float(clip_data, "highlight_confidence"),
+                highlight_video_path=clip_data.get("highlight_video_path"),
+                final_video_path=clip_data.get("final_video_path"),
             )
         )
 

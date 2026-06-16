@@ -69,6 +69,10 @@ async def serve_media(
         ".ass": "text/plain; charset=utf-8",
         ".json": "application/json",
         ".txt": "text/plain; charset=utf-8",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".png": "image/png",
+        ".webp": "image/webp",
     }
     media_type = media_type_map.get(suffix, "application/octet-stream")
 
