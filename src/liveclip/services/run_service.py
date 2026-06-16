@@ -2,19 +2,23 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import structlog
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from liveclip.adapters.ffmpeg import FFmpegConverter
+from liveclip.config import load_settings
 from liveclip.db.models import Clip, ClipPlan, Record, Subtitle, TaskRun, TaskStep
 from liveclip.db.repositories.run_repo import TaskRunRepository
 from liveclip.domain.enums import RecordSourceType, RunStatus, StepName, StepStatus
 from liveclip.pipeline.state_machine import PIPELINE_STEPS
 from liveclip.schemas.run import RunCreate
+from liveclip.utils.timezone import china_now
 
 logger = structlog.get_logger(__name__)
 
@@ -100,7 +104,7 @@ class RunService:
         if run is None:
             raise ValueError(f"TaskRun id={run_id} 不存在")
         run.run_status = str(RunStatus.RUNNING)
-        run.started_at = datetime.now()
+        run.started_at = china_now()
         await self._session.flush()
         logger.info("运行已开始", run_id=run_id)
 
@@ -110,7 +114,7 @@ class RunService:
         if run is None:
             raise ValueError(f"TaskRun id={run_id} 不存在")
         run.run_status = str(RunStatus.SUCCEEDED)
-        run.finished_at = datetime.now()
+        run.finished_at = china_now()
         await self._session.flush()
         logger.info("运行已成功", run_id=run_id)
 
@@ -120,7 +124,7 @@ class RunService:
         if run is None:
             raise ValueError(f"TaskRun id={run_id} 不存在")
         run.run_status = str(RunStatus.WAITING)
-        run.finished_at = datetime.now()
+        run.finished_at = china_now()
         run.error_code = error_code
         run.error_message = error_message
         await self._session.flush()
@@ -137,7 +141,7 @@ class RunService:
         if run is None:
             raise ValueError(f"TaskRun id={run_id} 不存在")
         run.run_status = str(RunStatus.FAILED)
-        run.finished_at = datetime.now()
+        run.finished_at = china_now()
         run.error_code = error_code
         run.error_message = error_message
         await self._session.flush()
@@ -154,7 +158,7 @@ class RunService:
         if run is None:
             raise ValueError(f"TaskRun id={run_id} 不存在")
         run.run_status = str(RunStatus.CANCELED)
-        run.finished_at = datetime.now()
+        run.finished_at = china_now()
         await self._session.flush()
         logger.info("运行已取消", run_id=run_id)
 
@@ -177,7 +181,7 @@ class RunService:
         if step is None:
             raise ValueError(f"TaskStep id={step_id} 不存在")
         step.step_status = str(StepStatus.RUNNING)
-        step.started_at = datetime.now()
+        step.started_at = china_now()
         await self._session.flush()
         logger.info("步骤已开始", step_id=step_id, step_name=step.step_name)
 
@@ -193,7 +197,7 @@ class RunService:
         if step is None:
             raise ValueError(f"TaskStep id={step_id} 不存在")
         step.step_status = str(StepStatus.SUCCEEDED)
-        step.finished_at = datetime.now()
+        step.finished_at = china_now()
         step.output_path = output_path
         step.duration_ms = duration_ms
         if metadata is not None:
@@ -213,7 +217,7 @@ class RunService:
         if step is None:
             raise ValueError(f"TaskStep id={step_id} 不存在")
         step.step_status = str(StepStatus.FAILED)
-        step.finished_at = datetime.now()
+        step.finished_at = china_now()
         step.error_code = error_code
         step.error_message = error_message
         await self._session.flush()
@@ -235,7 +239,7 @@ class RunService:
         if step is None:
             raise ValueError(f"TaskStep id={step_id} 不存在")
         step.step_status = str(StepStatus.SKIPPED)
-        step.finished_at = datetime.now()
+        step.finished_at = china_now()
         step.error_code = error_code
         step.error_message = error_message
         await self._session.flush()
@@ -271,7 +275,10 @@ class RunService:
         file_size = _metadata_int(metadata, "file_size")
         if file_size is None and file_path.exists():
             file_size = file_path.stat().st_size
-        duration_seconds = step.duration_ms / 1000 if step.duration_ms else 0.0
+        duration_seconds = await self._probe_video_duration(file_path)
+        if duration_seconds is None:
+            # 回退到步骤执行耗时（旧行为，兼容非视频产物）
+            duration_seconds = step.duration_ms / 1000 if step.duration_ms else 0.0
         stmt = select(Record).where(Record.run_id == step.run_id, Record.file_path == output_path)
         result = await self._session.execute(stmt)
         record = result.scalar_one_or_none()
@@ -289,6 +296,28 @@ class RunService:
             record.file_size = file_size or record.file_size
             record.duration_seconds = duration_seconds or record.duration_seconds
             record.format = file_path.suffix.lstrip(".") or record.format
+
+    async def _probe_video_duration(self, file_path: Path) -> float | None:
+        """Probe actual media duration; return None on failure."""
+        if not file_path.exists():
+            return None
+        suffix = file_path.suffix.lower()
+        if suffix not in {".ts", ".mp4", ".mkv", ".mov", ".avi", ".flv"}:
+            return None
+        settings = load_settings()
+        converter = FFmpegConverter(
+            ffmpeg_binary=settings.ffmpeg.ffmpeg_binary,
+            ffprobe_binary=settings.ffmpeg.ffprobe_binary,
+        )
+        try:
+            return await asyncio.to_thread(converter.get_duration, file_path)
+        except Exception:
+            logger.warning(
+                "probe_duration_failed",
+                path=str(file_path),
+                exc_info=True,
+            )
+            return None
 
     async def _upsert_subtitle(self, step: TaskStep, output_path: str) -> None:
         stmt = select(Subtitle).where(Subtitle.run_id == step.run_id, Subtitle.file_path == output_path)

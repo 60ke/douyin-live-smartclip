@@ -13,8 +13,18 @@ from liveclip.schemas.live_room import (
     LiveRoomUpdate,
 )
 from liveclip.services import LiveRoomService
+from liveclip.utils.timezone import as_china_aware
 
 router = APIRouter(prefix="/api/v1/live-rooms", tags=["live-rooms"])
+
+
+def _apply_tz(room_response: LiveRoomResponse) -> LiveRoomResponse:
+    """将 LiveRoomResponse 中的 datetime 字段转换为东八区带时区时间。"""
+    data = room_response.model_dump()
+    for key in ("created_at", "updated_at"):
+        if key in data and data[key] is not None:
+            data[key] = as_china_aware(data[key])
+    return LiveRoomResponse(**data)
 
 
 @router.post("/", response_model=LiveRoomResponse, status_code=status.HTTP_201_CREATED)
@@ -27,7 +37,7 @@ async def create_live_room(
     room = await service.create(body)
     await session.flush()
     await session.refresh(room)
-    response = LiveRoomResponse.model_validate(room)
+    response = _apply_tz(LiveRoomResponse.model_validate(room))
     await session.commit()
     return response
 
@@ -42,7 +52,7 @@ async def list_live_rooms(
     """获取直播间列表。"""
     items, total = await service.get_all(offset=offset, limit=limit)
     response = LiveRoomListResponse(
-        items=[LiveRoomResponse.model_validate(r) for r in items],
+        items=[_apply_tz(LiveRoomResponse.model_validate(r)) for r in items],
         total=total,
     )
     await session.commit()
@@ -59,7 +69,7 @@ async def get_live_room(
     room = await service.get_by_id(room_id)
     if room is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="直播间不存在")
-    response = LiveRoomResponse.model_validate(room)
+    response = _apply_tz(LiveRoomResponse.model_validate(room))
     await session.commit()
     return response
 
@@ -77,7 +87,7 @@ async def update_live_room(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="直播间不存在")
     await session.flush()
     await session.refresh(room)
-    response = LiveRoomResponse.model_validate(room)
+    response = _apply_tz(LiveRoomResponse.model_validate(room))
     await session.commit()
     return response
 

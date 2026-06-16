@@ -26,6 +26,8 @@ services:
     build: .
     image: liveclip:latest
     container_name: liveclip-server
+    environment:
+      TZ: Asia/Shanghai
     env_file:
       - .env
     depends_on:

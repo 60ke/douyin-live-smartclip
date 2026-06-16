@@ -274,6 +274,11 @@ class Clip(Base):
     plan: Mapped[ClipPlan] = relationship(back_populates="clips", init=False)
     source_record: Mapped[Record | None] = relationship(init=False)
 
+    @property
+    def playable_video_path(self) -> str | None:
+        """Video path the UI should play or download for this clip."""
+        return self.final_video_path or self.output_path
+
 
 # ---------------------------------------------------------------------------
 # LLM 配置

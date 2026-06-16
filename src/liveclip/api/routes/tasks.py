@@ -15,8 +15,27 @@ from liveclip.schemas.task import (
     TaskUpdate,
 )
 from liveclip.services import RunService, TaskService
+from liveclip.utils.timezone import as_china_aware
 
 router = APIRouter(prefix="/api/v1/tasks", tags=["tasks"])
+
+
+def _apply_task_tz(task_response: TaskResponse) -> TaskResponse:
+    """将 TaskResponse 中的 datetime 字段转换为东八区带时区时间。"""
+    data = task_response.model_dump()
+    for key in ("created_at", "updated_at"):
+        if key in data and data[key] is not None:
+            data[key] = as_china_aware(data[key])
+    return TaskResponse(**data)
+
+
+def _apply_run_tz(run_response: RunResponse) -> RunResponse:
+    """将 RunResponse 中的 datetime 字段转换为东八区带时区时间。"""
+    data = run_response.model_dump()
+    for key in ("started_at", "finished_at", "heartbeat_at", "created_at"):
+        if key in data and data[key] is not None:
+            data[key] = as_china_aware(data[key])
+    return RunResponse(**data)
 
 
 @router.post("/", response_model=TaskResponse, status_code=status.HTTP_201_CREATED)
@@ -27,7 +46,7 @@ async def create_task(
 ) -> TaskResponse:
     """创建任务。"""
     task = await service.create(body)
-    response = TaskResponse.model_validate(task)
+    response = _apply_task_tz(TaskResponse.model_validate(task))
     await session.commit()
     return response
 
@@ -42,7 +61,7 @@ async def list_tasks(
     """获取任务列表。"""
     items, total = await service.get_all(offset=offset, limit=limit)
     response = TaskListResponse(
-        items=[TaskResponse.model_validate(t) for t in items],
+        items=[_apply_task_tz(TaskResponse.model_validate(t)) for t in items],
         total=total,
     )
     await session.commit()
@@ -59,7 +78,7 @@ async def get_task(
     task = await service.get_by_id(task_id)
     if task is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任务不存在")
-    response = TaskResponse.model_validate(task)
+    response = _apply_task_tz(TaskResponse.model_validate(task))
     await session.commit()
     return response
 
@@ -75,7 +94,7 @@ async def update_task(
     task = await service.update(task_id, body)
     if task is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任务不存在")
-    response = TaskResponse.model_validate(task)
+    response = _apply_task_tz(TaskResponse.model_validate(task))
     await session.commit()
     return response
 
@@ -110,7 +129,7 @@ async def trigger_run(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任务不存在")
     run_create = RunCreate(task_id=task_id, trigger_type=TriggerType.API)
     run = await run_service.create(run_create)
-    response = RunResponse.model_validate(run)
+    response = _apply_run_tz(RunResponse.model_validate(run))
     await session.commit()
     return response
 
@@ -130,7 +149,7 @@ async def list_task_runs(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任务不存在")
     items, total = await run_service.get_by_task(task_id, offset=offset, limit=limit)
     response = RunListResponse(
-        items=[RunResponse.model_validate(r) for r in items],
+        items=[_apply_run_tz(RunResponse.model_validate(r)) for r in items],
         total=total,
     )
     await session.commit()

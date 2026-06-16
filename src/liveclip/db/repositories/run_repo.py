@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from liveclip.db.models import TaskRun, TaskStep
 from liveclip.db.repositories.base import BaseRepository
 from liveclip.domain.enums import RunStatus, StepStatus
+from liveclip.utils.timezone import china_now
 
 
 class TaskRunRepository(BaseRepository[TaskRun]):
@@ -52,12 +53,12 @@ class TaskRunRepository(BaseRepository[TaskRun]):
         """更新运行心跳时间。"""
         instance = await session.get(self.model, run_id)
         if instance is not None:
-            instance.heartbeat_at = datetime.now()
+            instance.heartbeat_at = china_now()
             await session.flush()
 
     async def get_stale_runs(self, session: AsyncSession, timeout_seconds: int) -> list[TaskRun]:
         """获取心跳超时的运行列表。"""
-        cutoff = datetime.now() - timedelta(seconds=timeout_seconds)
+        cutoff = china_now() - timedelta(seconds=timeout_seconds)
         stmt = select(self.model).where(
             self.model.run_status == RunStatus.RUNNING,
             self.model.heartbeat_at.is_not(None),

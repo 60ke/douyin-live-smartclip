@@ -27,6 +27,7 @@ from liveclip.pipeline.state_machine import get_enabled_steps
 from liveclip.schemas.run import RunCreate
 from liveclip.services.run_service import RunService
 from liveclip.storage.paths import RunPaths
+from liveclip.utils.timezone import china_now
 from liveclip.worker.locker import RunLocker
 from liveclip.worker.step_executor import StepExecutor
 
@@ -414,7 +415,7 @@ class WorkerRunner:
             return True
         interval_seconds = self._get_check_interval_seconds(task, config)
         last_checked_at = latest_run.finished_at or latest_run.created_at
-        return datetime.now() - last_checked_at >= timedelta(seconds=interval_seconds)
+        return china_now() - last_checked_at >= timedelta(seconds=interval_seconds)
 
     async def _scheduled_task_due(
         self,
@@ -426,7 +427,7 @@ class WorkerRunner:
         if latest_run is not None:
             return False
         scheduled_at = self._parse_datetime(config.get("scheduled_start_at"))
-        return scheduled_at is not None and scheduled_at <= datetime.now()
+        return scheduled_at is not None and scheduled_at <= china_now()
 
     @staticmethod
     def _is_loop_task(task: Task, config: dict[str, object]) -> bool:
@@ -528,6 +529,8 @@ class WorkerRunner:
                 base_dir=self._settings.storage.base_dir,
                 room_id=room.id,
                 run_id=run.id,
+                room_name=room.name,
+                recording_started_at=run.started_at or china_now(),
             )
 
             ctx = PipelineContext(

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
 
 from liveclip.storage.paths import (
@@ -37,6 +38,27 @@ class TestRunPaths:
         assert rp.srt_path.name == "run_42.srt"
         assert rp.combined_srt_path.name == "run_combine.srt"
         assert rp.combined_srt_path != rp.srt_path
+
+    def test_human_readable_file_paths_include_run_id(self, tmp_path: Path) -> None:
+        started_at = datetime(2026, 6, 16, 10, 30)
+        first = RunPaths(
+            tmp_path,
+            room_id=1,
+            run_id=42,
+            room_name="直播间",
+            recording_started_at=started_at,
+        )
+        second = RunPaths(
+            tmp_path,
+            room_id=1,
+            run_id=43,
+            room_name="直播间",
+            recording_started_at=started_at,
+        )
+
+        assert first.mp4_path.name == "直播间_202606161030_run_42.mp4"
+        assert second.mp4_path.name == "直播间_202606161030_run_43.mp4"
+        assert first.mp4_path != second.mp4_path
 
     def test_ensure_all_dirs(self, tmp_path: Path) -> None:
         rp = RunPaths(tmp_path, room_id=1, run_id=42)

@@ -12,6 +12,7 @@ from liveclip.observability import get_logger
 from liveclip.schemas.record import RecordResponse
 from liveclip.schemas.recording import RecordingResponse
 from liveclip.schemas.subtitle import SubtitleResponse
+from liveclip.utils.timezone import as_china_aware
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/v1/recordings", tags=["recordings"])
@@ -59,9 +60,9 @@ async def list_room_recordings(
                     duration_seconds=record.duration_seconds or 0.0,
                     format=record.format or "mp4",
                     subtitle_file_path=subtitles.get(record.run_id),
-                    live_started_at=run.started_at,
-                    live_finished_at=run.finished_at,
-                    created_at=record.created_at,
+                    live_started_at=as_china_aware(run.started_at),
+                    live_finished_at=as_china_aware(run.finished_at),
+                    created_at=as_china_aware(record.created_at),
                 )
             )
         except Exception:

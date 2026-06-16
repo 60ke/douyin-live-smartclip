@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
 
 import structlog
 from sqlalchemy import func, select
@@ -15,6 +14,7 @@ from liveclip.domain.enums import RunStatus, StepStatus, TriggerType
 from liveclip.domain.models import PipelineConfig
 from liveclip.pipeline.state_machine import get_enabled_steps
 from liveclip.schemas.task import TaskCreate, TaskUpdate
+from liveclip.utils.timezone import china_now
 
 logger = structlog.get_logger(__name__)
 
@@ -65,7 +65,7 @@ class TaskService:
         updates = data.model_dump(exclude_unset=True)
         for key, value in updates.items():
             setattr(task, key, value)
-        task.updated_at = datetime.now()
+        task.updated_at = china_now()
         await self._session.flush()
         await self._session.refresh(task)
         logger.info("任务已更新", task_id=task.id)

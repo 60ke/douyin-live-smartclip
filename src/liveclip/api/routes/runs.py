@@ -9,8 +9,36 @@ from liveclip.api.deps import get_db_session, get_run_service
 from liveclip.domain.enums import RunStatus
 from liveclip.schemas.run import RunDetailResponse, RunListResponse, RunResponse, StepResponse
 from liveclip.services import RunService
+from liveclip.utils.timezone import as_china_aware
 
 router = APIRouter(prefix="/api/v1/runs", tags=["runs"])
+
+
+def _apply_tz(run_response: RunResponse) -> RunResponse:
+    """将 RunResponse 中的 datetime 字段转换为东八区带时区时间。"""
+    data = run_response.model_dump()
+    _apply_run_tz(data)
+    return RunResponse(**data)
+
+
+def _apply_run_tz(data: dict[str, object]) -> None:
+    reference = data.get("created_at")
+    for key in ("started_at", "finished_at", "heartbeat_at"):
+        if key in data and data[key] is not None:
+            data[key] = as_china_aware(data[key], reference=reference)  # type: ignore[arg-type]
+    if data.get("created_at") is not None:
+        data["created_at"] = as_china_aware(data["created_at"])  # type: ignore[arg-type]
+
+
+def _apply_step_tz(step_response: StepResponse) -> StepResponse:
+    data = step_response.model_dump()
+    reference = data.get("created_at")
+    for key in ("started_at", "finished_at"):
+        if key in data and data[key] is not None:
+            data[key] = as_china_aware(data[key], reference=reference)  # type: ignore[arg-type]
+    if data.get("created_at") is not None:
+        data["created_at"] = as_china_aware(data["created_at"])  # type: ignore[arg-type]
+    return StepResponse(**data)
 
 
 @router.get("/", response_model=RunListResponse)
@@ -23,7 +51,7 @@ async def list_runs(
     """获取运行列表。"""
     items, total = await service.get_all(offset=offset, limit=limit)
     response = RunListResponse(
-        items=[RunResponse.model_validate(r) for r in items],
+        items=[_apply_tz(RunResponse.model_validate(r)) for r in items],
         total=total,
     )
     await session.commit()
@@ -41,9 +69,11 @@ async def get_run(
         run, steps = await service.get_detail(run_id)
     except ValueError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="运行不存在") from None
+    run_data = RunResponse.model_validate(run).model_dump()
+    _apply_run_tz(run_data)
     response = RunDetailResponse(
-        **RunResponse.model_validate(run).model_dump(),
-        steps=[StepResponse.model_validate(s) for s in steps],
+        **run_data,
+        steps=[_apply_step_tz(StepResponse.model_validate(s)) for s in steps],
     )
     await session.commit()
     return response
@@ -73,6 +103,6 @@ async def cancel_run(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="运行不存在") from None
     await session.flush()
     await session.refresh(run)
-    response = RunResponse.model_validate(run)
+    response = _apply_tz(RunResponse.model_validate(run))
     await session.commit()
     return response

@@ -42,6 +42,7 @@ class ClipResponse(BaseModel):
     highlight_confidence: float | None = None
     highlight_video_path: str | None = None
     final_video_path: str | None = None
+    playable_video_path: str | None = None
     created_at: datetime
 
 

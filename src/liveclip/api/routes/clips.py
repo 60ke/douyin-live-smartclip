@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
+import subprocess
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -23,6 +25,7 @@ from liveclip.schemas.clip import (
     RecordingClipResponse,
 )
 from liveclip.services import ClipCoverRenderer, ClipService, HighlightIntroSelector
+from liveclip.utils.timezone import as_china_aware
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/v1/clips", tags=["clips"])
@@ -105,8 +108,9 @@ async def get_clips_by_recording(
     if changed:
         logger.info("recording_clips_source_record_backfilled", record_id=record.id, run_id=run.id)
 
-    response = [
-        _build_recording_clip_response(
+    response = []
+    for clip in clips:
+        item = await _build_recording_clip_response(
             clip=clip,
             record=record,
             run=run,
@@ -114,8 +118,7 @@ async def get_clips_by_recording(
             room=room,
             subtitle_path=subtitle_path,
         )
-        for clip in clips
-    ]
+        response.append(item)
     await session.commit()
     return response
 
@@ -135,13 +138,6 @@ async def update_clip_cover(
 
     settings = load_settings()
     base_dir = settings.storage.base_dir.resolve()
-    video_path = _resolve_existing_path(clip.output_path, base_dir=base_dir)
-    source_image_path = (
-        _resolve_existing_path(payload.source_image_path, base_dir=base_dir)
-        if payload.source_image_path
-        else None
-    )
-
     renderer = ClipCoverRenderer(
         ffmpeg_binary=settings.ffmpeg.ffmpeg_binary,
         ffprobe_binary=settings.ffmpeg.ffprobe_binary,
@@ -152,6 +148,12 @@ async def update_clip_cover(
     highlight_start_seconds = payload.highlight_start_seconds
     highlight_end_seconds = payload.highlight_end_seconds
     try:
+        video_path = _resolve_clip_video_path(clip, base_dir=base_dir)
+        source_image_path = (
+            _resolve_existing_path(payload.source_image_path, base_dir=base_dir)
+            if payload.source_image_path
+            else None
+        )
         if (
             highlight_enabled
             and highlight_start_seconds is None
@@ -191,6 +193,19 @@ async def update_clip_cover(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"高能片头 LLM 判断失败: {exc.message}",
+        ) from exc
+    except subprocess.CalledProcessError as exc:
+        stderr = (exc.stderr or "")[:800]
+        logger.warning(
+            "clip_cover_ffmpeg_failed",
+            clip_id=clip.id,
+            returncode=exc.returncode,
+            stderr=stderr,
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"FFmpeg 封面生成失败 (rc={exc.returncode}): {stderr}",
         ) from exc
     except (FileNotFoundError, ValueError) as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
@@ -369,14 +384,37 @@ def _resolve_existing_path(path: str | None, *, base_dir: Path) -> Path:
     if not path:
         raise FileNotFoundError("文件路径为空")
     file_path = Path(path).expanduser()
-    if not file_path.is_absolute():
-        file_path = base_dir / file_path
-    file_path = file_path.resolve()
-    if not file_path.exists():
-        raise FileNotFoundError(f"文件不存在: {path}")
-    if not file_path.is_file():
-        raise FileNotFoundError(f"路径不是文件: {path}")
-    return file_path
+    candidates = (
+        [file_path]
+        if file_path.is_absolute()
+        else _relative_path_candidates(file_path, base_dir)
+    )
+    checked: list[str] = []
+    for candidate in candidates:
+        resolved = candidate.resolve()
+        checked.append(str(resolved))
+        if resolved.exists():
+            if not resolved.is_file():
+                raise FileNotFoundError(f"路径不是文件: {path}")
+            return resolved
+    raise FileNotFoundError(f"文件不存在: {path}; checked={checked}")
+
+
+def _relative_path_candidates(path: Path, base_dir: Path) -> list[Path]:
+    candidates = [base_dir / path]
+    parts = path.parts
+    if parts and parts[0] == base_dir.name:
+        candidates.append(base_dir.parent / path)
+    candidates.append(Path.cwd() / path)
+
+    unique: list[Path] = []
+    seen: set[Path] = set()
+    for candidate in candidates:
+        resolved = candidate.resolve()
+        if resolved not in seen:
+            seen.add(resolved)
+            unique.append(candidate)
+    return unique
 
 
 def _resolve_optional_existing_path(path: str | None, *, base_dir: Path) -> Path | None:
@@ -388,7 +426,20 @@ def _resolve_optional_existing_path(path: str | None, *, base_dir: Path) -> Path
         return None
 
 
-def _build_recording_clip_response(
+def _resolve_clip_video_path(clip: Clip, *, base_dir: Path) -> Path:
+    checked: list[str] = []
+    for path in (clip.output_path, clip.final_video_path):
+        if not path or path in checked:
+            continue
+        checked.append(path)
+        try:
+            return _resolve_existing_path(path, base_dir=base_dir)
+        except FileNotFoundError:
+            continue
+    raise FileNotFoundError(f"切片视频文件不存在: {checked}")
+
+
+async def _build_recording_clip_response(
     *,
     clip: Clip,
     record: Record,
@@ -397,6 +448,7 @@ def _build_recording_clip_response(
     room: LiveRoom,
     subtitle_path: str | None,
 ) -> RecordingClipResponse:
+    start_seconds, end_seconds = await _resolve_clip_times(clip, run, room)
     return RecordingClipResponse(
         id=clip.id,
         plan_id=clip.plan_id,
@@ -409,16 +461,16 @@ def _build_recording_clip_response(
         room_url=room.url,
         task_id=task.id,
         run_status=str(run.run_status),
-        live_started_at=run.started_at,
-        live_finished_at=run.finished_at,
-        clip_live_started_at=_offset_datetime(run.started_at, clip.start_seconds),
-        clip_live_finished_at=_offset_datetime(run.started_at, clip.end_seconds),
+        live_started_at=as_china_aware(run.started_at),
+        live_finished_at=as_china_aware(run.finished_at),
+        clip_live_started_at=as_china_aware(_offset_datetime(run.started_at, start_seconds)),
+        clip_live_finished_at=as_china_aware(_offset_datetime(run.started_at, end_seconds)),
         title=clip.title,
         start_subtitle_index=clip.start_subtitle_index,
         end_subtitle_index=clip.end_subtitle_index,
-        start_seconds=clip.start_seconds,
-        end_seconds=clip.end_seconds,
-        duration_seconds=clip.duration_seconds,
+        start_seconds=start_seconds,
+        end_seconds=end_seconds,
+        duration_seconds=clip.duration_seconds if clip.duration_seconds is not None else (end_seconds - start_seconds if start_seconds is not None and end_seconds is not None else None),
         parts_json=clip.parts_json,
         score=clip.score,
         structure_score=clip.structure_score,
@@ -440,7 +492,7 @@ def _build_recording_clip_response(
         final_video_path=clip.final_video_path,
         playable_video_path=clip.final_video_path or clip.output_path,
         subtitle_mode="none" if clip.final_video_path else "external",
-        created_at=clip.created_at,
+        created_at=as_china_aware(clip.created_at),
     )
 
 
@@ -448,6 +500,78 @@ def _offset_datetime(value: datetime | None, seconds: float | None) -> datetime 
     if value is None or seconds is None:
         return None
     return value + timedelta(seconds=seconds)
+
+
+async def _resolve_clip_times(
+    clip: Clip,
+    run: TaskRun,
+    room: LiveRoom,
+) -> tuple[float | None, float | None]:
+    """Resolve clip start/end seconds, falling back to disk export_summary.json.
+
+    Existing clips may have NULL start_seconds/end_seconds if they were created
+    before those columns existed. This helper backfills the values from the
+    export summary so the UI can display real video timestamps.
+    """
+    if clip.start_seconds is not None and clip.end_seconds is not None:
+        return clip.start_seconds, clip.end_seconds
+
+    summary_data = await asyncio.to_thread(_read_export_summary, clip, run, room)
+    if summary_data is None:
+        return clip.start_seconds, clip.end_seconds
+
+    # Match by output path first, then by title.
+    clip_file_name = Path(clip.output_path).name if clip.output_path else None
+    for clip_data in summary_data.get("clips", []):
+        summary_path_value = clip_data.get("clip_path")
+        summary_file_name = Path(summary_path_value).name if summary_path_value else None
+        if (
+            clip_file_name
+            and summary_file_name
+            and clip_file_name == summary_file_name
+        ):
+            return (
+                _metadata_float(clip_data, "start_time"),
+                _metadata_float(clip_data, "end_time"),
+            )
+
+    for clip_data in summary_data.get("clips", []):
+        if clip_data.get("title") == clip.title:
+            return (
+                _metadata_float(clip_data, "start_time"),
+                _metadata_float(clip_data, "end_time"),
+            )
+
+    return clip.start_seconds, clip.end_seconds
+
+
+def _read_export_summary(
+    clip: Clip,
+    run: TaskRun,
+    room: LiveRoom,
+) -> dict[str, object] | None:
+    """Read export_summary.json from disk (synchronous, run in thread)."""
+    settings = load_settings()
+    summary_path = (
+        Path(settings.storage.base_dir)
+        / f"room_{room.id}"
+        / f"run_{run.id}"
+        / "clips"
+        / "export_summary.json"
+    )
+    if not summary_path.exists():
+        return None
+
+    try:
+        return json.loads(summary_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError) as exc:
+        logger.warning(
+            "resolve_clip_times_summary_read_failed",
+            clip_id=clip.id,
+            run_id=run.id,
+            error=str(exc),
+        )
+        return None
 
 
 def _load_plan_scores(plan_dir: Path) -> dict[int, dict[str, object]]:

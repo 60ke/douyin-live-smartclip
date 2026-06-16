@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from datetime import datetime
 from pathlib import Path
 
 
@@ -10,10 +11,19 @@ class RunPaths:
     All properties return :class:`Path` objects rooted under the run directory.
     """
 
-    def __init__(self, base_dir: Path, room_id: int, run_id: int) -> None:
+    def __init__(
+        self,
+        base_dir: Path,
+        room_id: int,
+        run_id: int,
+        room_name: str | None = None,
+        recording_started_at: datetime | None = None,
+    ) -> None:
         self.base_dir = base_dir
         self.room_id = room_id
         self.run_id = run_id
+        self.room_name = room_name
+        self.recording_started_at = recording_started_at
 
     # -- directories -----------------------------------------------------------
 
@@ -56,16 +66,29 @@ class RunPaths:
     # -- specific files --------------------------------------------------------
 
     @property
+    def _recording_stem(self) -> str:
+        """Generate a human-readable recording file stem.
+
+        Pattern: ``<room_name>_<YYYYMMDDhhmm>_run_<run_id>`` when room metadata
+        is available, otherwise falls back to ``run_<run_id>``.
+        """
+        if self.room_name and self.recording_started_at is not None:
+            sanitized = sanitize_filename(self.room_name, max_length=80)
+            timestamp = self.recording_started_at.strftime("%Y%m%d%H%M")
+            return f"{sanitized}_{timestamp}_run_{self.run_id}"
+        return f"run_{self.run_id}"
+
+    @property
     def raw_ts_path(self) -> Path:
-        return self.raw_dir / f"run_{self.run_id}.ts"
+        return self.raw_dir / f"{self._recording_stem}.ts"
 
     @property
     def mp4_path(self) -> Path:
-        return self.media_dir / f"run_{self.run_id}.mp4"
+        return self.media_dir / f"{self._recording_stem}.mp4"
 
     @property
     def srt_path(self) -> Path:
-        return self.subtitles_dir / f"run_{self.run_id}.srt"
+        return self.subtitles_dir / f"{self._recording_stem}.srt"
 
     @property
     def combined_srt_path(self) -> Path:
@@ -129,9 +152,15 @@ def get_run_dir(base_dir: Path, room_id: int, run_id: int) -> Path:
     return get_room_dir(base_dir, room_id) / f"run_{run_id}"
 
 
-def get_run_paths(base_dir: Path, room_id: int, run_id: int) -> RunPaths:
+def get_run_paths(
+    base_dir: Path,
+    room_id: int,
+    run_id: int,
+    room_name: str | None = None,
+    recording_started_at: datetime | None = None,
+) -> RunPaths:
     """Construct a :class:`RunPaths` for the given run."""
-    return RunPaths(base_dir, room_id, run_id)
+    return RunPaths(base_dir, room_id, run_id, room_name, recording_started_at)
 
 
 _ILLEGAL_CHARS_RE = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
