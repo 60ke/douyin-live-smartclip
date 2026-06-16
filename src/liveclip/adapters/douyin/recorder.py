@@ -48,6 +48,7 @@ class DouyinRecorder:
             RecordError: 录制失败时抛出。
         """
         part_path = output_path.with_suffix(output_path.suffix + ".part")
+        output_path.parent.mkdir(parents=True, exist_ok=True)
 
         cmd = FFmpegCommandBuilder.record_stream_to_ts(
             stream_url=stream_url,

@@ -48,6 +48,7 @@ class FFmpegConverter:
             FFmpegError: 转换失败时抛出。
         """
         part_path = temporary_output_path(output_path)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
 
         cmd = FFmpegCommandBuilder.convert_ts_to_mp4(
             input_path,

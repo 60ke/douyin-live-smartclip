@@ -8,8 +8,10 @@ from pytest import MonkeyPatch
 
 from liveclip.adapters.douyin import recorder as recorder_module
 from liveclip.adapters.douyin.recorder import DouyinRecorder
+from liveclip.adapters.ffmpeg import convert as convert_module
 from liveclip.adapters.ffmpeg.clip import FFmpegClipper
 from liveclip.adapters.ffmpeg.command import FFmpegCommandBuilder
+from liveclip.adapters.ffmpeg.convert import FFmpegConverter
 
 
 def test_record_stream_to_ts_uses_ffmpeg_not_streamlink(tmp_path: Path) -> None:
@@ -127,14 +129,14 @@ def test_douyin_recorder_writes_part_then_renames(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
 ) -> None:
-    output_path = tmp_path / "record.ts"
+    output_path = tmp_path / "room_1" / "run_1" / "raw" / "record.ts"
     captured: dict[str, object] = {}
 
     def fake_run_long_command(cmd: list[str], **kwargs: object) -> CompletedProcess[str]:
         captured["cmd"] = cmd
         captured["timeout"] = kwargs.get("timeout")
         part_path = Path(cmd[-1])
-        part_path.parent.mkdir(parents=True, exist_ok=True)
+        assert part_path.parent.exists()
         part_path.write_bytes(b"ts-data")
         return CompletedProcess(cmd, 0, "", "")
 
@@ -152,6 +154,28 @@ def test_douyin_recorder_writes_part_then_renames(
     cmd = captured["cmd"]
     assert isinstance(cmd, list)
     assert cmd[0] == "ffmpeg"
+
+
+def test_ffmpeg_converter_creates_output_parent(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    input_path = tmp_path / "record.ts"
+    output_path = tmp_path / "room_1" / "run_1" / "media" / "record.mp4"
+    input_path.write_bytes(b"ts-data")
+
+    def fake_run_command(cmd: list[str]) -> CompletedProcess[str]:
+        part_path = Path(cmd[-1])
+        assert part_path.parent.exists()
+        part_path.write_bytes(b"mp4-data")
+        return CompletedProcess(cmd, 0, "", "")
+
+    monkeypatch.setattr(convert_module, "run_command", fake_run_command)
+
+    result = FFmpegConverter().convert_ts_to_mp4(input_path, output_path)
+
+    assert result == output_path
+    assert output_path.read_bytes() == b"mp4-data"
 
 
 def test_douyin_recorder_unlimited_duration_has_no_outer_timeout(

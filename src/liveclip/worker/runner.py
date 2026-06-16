@@ -529,7 +529,6 @@ class WorkerRunner:
                 room_id=room.id,
                 run_id=run.id,
             )
-            paths.ensure_all_dirs()
 
             ctx = PipelineContext(
                 run_id=run.id,
