@@ -203,7 +203,7 @@ class StepExecutor:
                 resolver=DouyinResolver(web_client=douyin_client),
                 live_checker=DouyinLiveChecker(web_client=douyin_client),
                 stream_fetcher=DouyinStreamFetcher(web_client=douyin_client),
-                recorder=DouyinRecorder(),
+                recorder=DouyinRecorder(ffmpeg_binary=settings.ffmpeg.ffmpeg_binary),
             )
 
         if step_name == StepName.CONVERT_MP4:

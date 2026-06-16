@@ -23,6 +23,7 @@ def test_record_stream_to_ts_uses_ffmpeg_not_streamlink(tmp_path: Path) -> None:
 
     assert cmd[0] == "ffmpeg"
     assert "streamlink" not in cmd
+    assert "-4" not in cmd
     assert "-t" in cmd
     assert "12" in cmd
     assert "-f" in cmd

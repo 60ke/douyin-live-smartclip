@@ -24,7 +24,6 @@ class FFmpegCommandBuilder:
         """构建直播流录制为 TS 的 ffmpeg 命令。"""
         cmd = [
             "ffmpeg",
-            "-4",
             "-y",
             "-v",
             "verbose",
