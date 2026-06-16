@@ -88,7 +88,6 @@ class ClipCoverRenderer:
         cover_intro_video_path = output_dir / f"{stem}_cover_intro.mp4"
         highlight_video_path = output_dir / f"{stem}_highlight_intro.mp4"
         final_video_path = output_dir / f"{stem}_final.mp4"
-        concat_list_path = output_dir / f"{stem}_final_concat.txt"
         highlight = self._select_highlight(
             spec=spec,
             enabled=highlight_enabled,
@@ -129,19 +128,13 @@ class ClipCoverRenderer:
             highlight_video_path.unlink(missing_ok=True)
         concat_paths.append(video_path)
 
-        concat_list_path.write_text(
-            "\n".join(self._concat_file_line(path) for path in concat_paths),
-            encoding="utf-8",
-        )
-        try:
-            self._run_ffmpeg(
-                self._concat_final_command(
-                    concat_list_path=concat_list_path,
-                    output_path=final_video_path,
-                )
+        self._run_ffmpeg(
+            self._concat_final_command(
+                input_paths=concat_paths,
+                output_path=final_video_path,
+                spec=spec,
             )
-        finally:
-            concat_list_path.unlink(missing_ok=True)
+        )
 
         return CoverRenderResult(
             cover_image_path=cover_image_path,
@@ -332,30 +325,58 @@ class ClipCoverRenderer:
     def _concat_final_command(
         self,
         *,
-        concat_list_path: Path,
+        input_paths: list[Path],
         output_path: Path,
+        spec: VideoSpec,
     ) -> list[str]:
-        return [
+        if len(input_paths) < 2:
+            raise ValueError("最终视频拼接至少需要封面片头和原视频")
+
+        cmd = [
             self._ffmpeg_binary,
             "-y",
-            "-f",
-            "concat",
-            "-safe",
-            "0",
-            "-i",
-            str(concat_list_path),
-            "-c:v",
-            "libx264",
-            "-preset",
-            "veryfast",
-            "-crf",
-            "18",
-            "-c:a",
-            "aac",
-            "-movflags",
-            "+faststart",
-            str(output_path),
         ]
+        for input_path in input_paths:
+            cmd.extend(["-i", str(input_path)])
+
+        filter_parts: list[str] = []
+        concat_inputs: list[str] = []
+        for index in range(len(input_paths)):
+            filter_parts.append(
+                f"[{index}:v]fps=30,scale={spec.width}:{spec.height},"
+                f"setsar=1,setpts=PTS-STARTPTS[v{index}]"
+            )
+            filter_parts.append(
+                f"[{index}:a]aformat=sample_rates=44100:channel_layouts=stereo,"
+                f"asetpts=PTS-STARTPTS[a{index}]"
+            )
+            concat_inputs.append(f"[v{index}][a{index}]")
+        filter_parts.append(
+            f"{''.join(concat_inputs)}concat=n={len(input_paths)}:v=1:a=1[v][a]"
+        )
+
+        cmd.extend(
+            [
+                "-filter_complex",
+                ";".join(filter_parts),
+                "-map",
+                "[v]",
+                "-map",
+                "[a]",
+                "-c:v",
+                "libx264",
+                "-preset",
+                "veryfast",
+                "-crf",
+                "18",
+                "-c:a",
+                "aac",
+                "-movflags",
+                "+faststart",
+                str(output_path),
+            ]
+        )
+        return cmd
 
     def _load_font(self, size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
         for path in self._font_candidates():
@@ -465,11 +486,6 @@ class ClipCoverRenderer:
     ) -> tuple[int, int]:
         bbox = draw.textbbox((0, 0), text, font=font)
         return int(bbox[2] - bbox[0]), int(bbox[3] - bbox[1])
-
-    @staticmethod
-    def _concat_file_line(file_path: Path) -> str:
-        escaped = file_path.resolve().as_posix().replace("'", r"'\''")
-        return f"file '{escaped}'"
 
     @staticmethod
     def _select_highlight(

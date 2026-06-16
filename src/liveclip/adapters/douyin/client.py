@@ -19,6 +19,10 @@ DEFAULT_USER_AGENT = (
     "AppleWebKit/537.36 (KHTML, like Gecko) "
     "Chrome/116.0.5845.97 Safari/537.36 Core/1.116.567.400 QQBrowser/19.7.6764.400"
 )
+DEFAULT_COOKIE = (
+    "ttwid=1%7C2iDIYVmjzMcpZ20fcaFde0VghXAA3NaNXE_SLR68IyE%7C1761045455%7C"
+    "ab35197d5cfb21df6cbb2fa7ef1c9262206b062c315b9d04da746d0b37dfbc7d"
+)
 
 
 class DouyinWebClient:
@@ -104,6 +108,5 @@ class DouyinWebClient:
             "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
             "Referer": referer,
         }
-        if cookie:
-            headers["Cookie"] = cookie
+        headers["Cookie"] = cookie or DEFAULT_COOKIE
         return headers

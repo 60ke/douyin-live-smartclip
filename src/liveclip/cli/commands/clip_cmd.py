@@ -5,10 +5,12 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import shutil
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 import typer
+from dotenv import load_dotenv
 
 if TYPE_CHECKING:
     from liveclip.domain.models import ClipSegment, SubtitleEntry
@@ -241,6 +243,27 @@ def clip_srt(
         min=1,
         help="Number of video clips to export concurrently; default is min(3, half of CPU cores)",
     ),
+    hard_subtitle: bool = typer.Option(
+        False,
+        "--hard-subtitle/--external-subtitle",
+        help="Burn each exported clip SRT into the clip video",
+    ),
+    cover_image: Path | None = typer.Option(
+        None,
+        "--cover-image",
+        exists=True,
+        help="Cover image to prepend to each final clip",
+    ),
+    cover_title: str | None = typer.Option(
+        None,
+        "--cover-title",
+        help="Override cover title; default uses each clip title",
+    ),
+    highlight_intro: bool = typer.Option(
+        False,
+        "--highlight-intro/--no-highlight-intro",
+        help="Use LLM to select a 3-8s highlight intro for each exported clip",
+    ),
 ) -> None:
     """Smart-clip a complete SRT file and optionally cut video clips.
 
@@ -267,6 +290,7 @@ def clip_srt(
     from liveclip.subtitle.parser import parse_srt_file
     from liveclip.subtitle.writer import rebase_subtitles, write_srt_file
 
+    load_dotenv()
     settings = load_settings(Path(config) if config else None)
     apply_runtime_environment(settings)
     ensure_directories(settings)
@@ -445,5 +469,206 @@ def clip_srt(
         exported = export_summary.get("exported", 0)
         failed = export_summary.get("failed", 0)
         typer.echo(f"Video clips:  {exported} exported, {failed} failed → {paths.clips_dir}")
+        if hard_subtitle or cover_image is not None or highlight_intro:
+            typer.echo("Post-processing clips...")
+            post_summary = _postprocess_exported_clips(
+                export_summary=export_summary,
+                clips_dir=paths.clips_dir,
+                hard_subtitle=hard_subtitle,
+                cover_image=cover_image,
+                cover_title=cover_title,
+                highlight_intro=highlight_intro,
+            )
+            _LocalStorage.write_json(paths.clips_dir / "export_summary.json", post_summary)
+            final_count = len(
+                [
+                    item
+                    for item in post_summary.get("clips", [])
+                    if isinstance(item, dict) and item.get("postprocess_status") == "completed"
+                ]
+            )
+            typer.echo(f"Post-processed clips: {final_count} → {paths.clips_dir / 'final'}")
 
     typer.echo(f"Summary: {summary_path}")
+
+
+def _postprocess_exported_clips(
+    *,
+    export_summary: dict[str, object],
+    clips_dir: Path,
+    hard_subtitle: bool,
+    cover_image: Path | None,
+    cover_title: str | None,
+    highlight_intro: bool,
+) -> dict[str, object]:
+    """Run optional hard subtitle, cover, and highlight post-processing."""
+    from liveclip.services.cover_service import ClipCoverRenderer
+    from liveclip.services.hard_subtitle_service import HardSubtitleRenderer
+    from liveclip.services.highlight_service import HighlightIntroSelector
+
+    final_dir = clips_dir / "final"
+    raw_dir = clips_dir / "raw"
+    work_dir = clips_dir / "work"
+    final_dir.mkdir(parents=True, exist_ok=True)
+    raw_dir.mkdir(parents=True, exist_ok=True)
+    work_dir.mkdir(parents=True, exist_ok=True)
+    _clean_directory_files(final_dir)
+    _clean_directory_files(raw_dir)
+    _clean_directory_files(work_dir)
+    subtitle_renderer = HardSubtitleRenderer() if hard_subtitle else None
+    cover_renderer = ClipCoverRenderer() if cover_image is not None or highlight_intro else None
+    highlight_selector = HighlightIntroSelector() if highlight_intro else None
+
+    updated_clips: list[object] = []
+    for raw_item in export_summary.get("clips", []):
+        if not isinstance(raw_item, dict):
+            updated_clips.append(raw_item)
+            continue
+        item = dict(raw_item)
+        try:
+            clip_path_value = item.get("clip_path")
+            if not isinstance(clip_path_value, str) or not clip_path_value:
+                raise ValueError("clip_path 为空")
+            current_video = Path(clip_path_value)
+            if not current_video.exists():
+                raise FileNotFoundError(f"切片视频不存在: {current_video}")
+
+            output_stem = current_video.stem
+            final_video = final_dir / f"{output_stem}.mp4"
+            raw_video = _move_to_raw(current_video, raw_dir / f"{output_stem}_raw.mp4")
+            current_video = raw_video
+            item["raw_clip_path"] = str(raw_video)
+            item["original_clip_path"] = str(raw_video)
+            subtitle_path = _optional_path(item.get("subtitle_path"))
+            if subtitle_path is not None and subtitle_path.exists():
+                subtitle_path = _move_to_raw(subtitle_path, raw_dir / f"{output_stem}_raw.srt")
+                item["subtitle_path"] = str(subtitle_path)
+
+            if subtitle_renderer is not None:
+                if subtitle_path is None:
+                    raise FileNotFoundError(f"切片缺少字幕: {current_video}")
+                hard_video = work_dir / f"{output_stem}_hard.mp4"
+                hard_result = subtitle_renderer.render(
+                    video_path=current_video,
+                    subtitle_path=subtitle_path,
+                    output_path=hard_video,
+                )
+                current_video = hard_result.output_video_path
+                item["hard_subtitle_video_path"] = str(hard_result.output_video_path)
+                item["hard_subtitle_ass_path"] = str(hard_result.ass_path)
+                item["subtitle_mode"] = "hard"
+            else:
+                item["subtitle_mode"] = "external"
+
+            if cover_renderer is not None:
+                spec = cover_renderer.probe_video(current_video)
+                highlight_start: float | None = None
+                highlight_end: float | None = None
+                highlight_reason: str | None = None
+                highlight_confidence: float | None = None
+                highlight_enabled = False
+                if highlight_selector is not None:
+                    try:
+                        decision = highlight_selector.select(
+                            title=str(cover_title or item.get("title") or "精彩片段"),
+                            duration_seconds=spec.duration_seconds,
+                            subtitle_path=subtitle_path,
+                            reason=str(item.get("reason") or ""),
+                            structure_reason=str(item.get("structure_reason") or ""),
+                        )
+                        highlight_enabled = decision.enabled
+                        highlight_start = decision.start_seconds
+                        highlight_end = decision.end_seconds
+                        highlight_reason = decision.reason
+                        highlight_confidence = decision.confidence
+                    except Exception as exc:  # noqa: BLE001 - keep batch postprocess alive.
+                        highlight_enabled = False
+                        highlight_reason = f"高能片头选择失败，已跳过: {exc}"
+                        highlight_confidence = 0.0
+
+                cover_result = cover_renderer.render(
+                    clip_id=int(item.get("index", 0)) + 1,
+                    video_path=current_video,
+                    output_dir=work_dir,
+                    title=str(cover_title or item.get("title") or "精彩片段"),
+                    source_image_path=cover_image,
+                    cover_duration_seconds=1.0,
+                    highlight_enabled=highlight_enabled,
+                    highlight_start_seconds=highlight_start,
+                    highlight_end_seconds=highlight_end,
+                )
+                current_video = cover_result.final_video_path
+                _replace_file(current_video, final_video)
+                current_video = final_video
+                item["cover_title"] = str(cover_title or item.get("title") or "精彩片段")
+                item["cover_source_image_path"] = str(cover_image) if cover_image else None
+                item["cover_image_path"] = str(cover_result.cover_image_path)
+                item["cover_intro_video_path"] = str(cover_result.cover_intro_video_path)
+                item["highlight_enabled"] = cover_result.highlight_enabled
+                item["highlight_start_seconds"] = cover_result.highlight_start_seconds
+                item["highlight_end_seconds"] = cover_result.highlight_end_seconds
+                item["highlight_reason"] = highlight_reason or cover_result.highlight_reason
+                item["highlight_confidence"] = (
+                    highlight_confidence
+                    if highlight_confidence is not None
+                    else cover_result.highlight_confidence
+                )
+                item["highlight_video_path"] = (
+                    str(cover_result.highlight_video_path)
+                    if cover_result.highlight_video_path
+                    else None
+                )
+                item["final_duration_seconds"] = cover_result.duration_seconds
+            elif current_video != final_video:
+                shutil.copy2(current_video, final_video)
+                current_video = final_video
+
+            item["clip_path"] = str(current_video)
+            item["postprocess_status"] = "completed"
+        except Exception as exc:  # noqa: BLE001 - report per-clip failure in summary.
+            item["postprocess_status"] = "failed"
+            item["postprocess_error"] = str(exc)
+        updated_clips.append(item)
+
+    result = dict(export_summary)
+    result["clips"] = updated_clips
+    result["postprocess"] = {
+        "hard_subtitle": hard_subtitle,
+        "cover_image": str(cover_image) if cover_image else None,
+        "highlight_intro": highlight_intro,
+        "final_dir": str(final_dir),
+        "raw_dir": str(raw_dir),
+        "work_dir": str(work_dir),
+    }
+    return result
+
+
+def _optional_path(value: object) -> Path | None:
+    if not isinstance(value, str) or not value:
+        return None
+    return Path(value)
+
+
+def _move_to_raw(source: Path, target: Path) -> Path:
+    if source == target:
+        return source
+    if target.exists():
+        target.unlink()
+    target.parent.mkdir(parents=True, exist_ok=True)
+    source.replace(target)
+    return target
+
+
+def _replace_file(source: Path, target: Path) -> None:
+    if source == target:
+        return
+    if target.exists():
+        target.unlink()
+    target.parent.mkdir(parents=True, exist_ok=True)
+    source.replace(target)
+
+
+def _clean_directory_files(directory: Path) -> None:
+    for path in directory.iterdir():
+        if path.is_file():
+            path.unlink()

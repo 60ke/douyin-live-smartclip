@@ -9,7 +9,7 @@ from typing import Any
 
 import httpx
 
-from liveclip.adapters.douyin.client import DouyinWebClient
+from liveclip.adapters.douyin.client import DEFAULT_COOKIE, DouyinWebClient
 from liveclip.exceptions import DOUYIN_NEED_LOGIN, LIVE_ROOM_RESOLVE_FAILED, LiveRoomError
 from liveclip.observability import get_logger
 
@@ -109,8 +109,7 @@ class DouyinResolver:
             return None
 
         headers = {**_DEFAULT_HEADERS}
-        if cookie:
-            headers["Cookie"] = cookie
+        headers["Cookie"] = cookie or DEFAULT_COOKIE
 
         try:
             with httpx.Client(follow_redirects=True, timeout=self._timeout) as client:

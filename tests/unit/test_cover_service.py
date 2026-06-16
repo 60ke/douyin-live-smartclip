@@ -78,6 +78,11 @@ def test_render_generates_cover_intro_and_final_video_paths(tmp_path: Path) -> N
     assert commands[0][0] == "ffprobe"
     assert commands[1][0] == "ffmpeg"
     assert commands[2][0] == "ffmpeg"
+    final_cmd = commands[2]
+    assert "-filter_complex" in final_cmd
+    assert "concat=n=2:v=1:a=1" in " ".join(final_cmd)
+    assert str(result.cover_intro_video_path) in final_cmd
+    assert str(video) in final_cmd
 
 
 def test_render_prepends_highlight_intro_when_enabled(tmp_path: Path) -> None:
@@ -128,3 +133,9 @@ def test_render_prepends_highlight_intro_when_enabled(tmp_path: Path) -> None:
     highlight_cmd = commands[2]
     assert "-ss" in highlight_cmd
     assert "115.000" in highlight_cmd
+    final_cmd = commands[3]
+    assert "-filter_complex" in final_cmd
+    assert "concat=n=3:v=1:a=1" in " ".join(final_cmd)
+    assert str(result.cover_intro_video_path) in final_cmd
+    assert str(result.highlight_video_path) in final_cmd
+    assert str(video) in final_cmd

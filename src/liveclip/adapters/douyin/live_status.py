@@ -7,6 +7,7 @@ from dataclasses import dataclass
 
 from liveclip.adapters.douyin.client import DouyinWebClient
 from liveclip.adapters.douyin.resolver import DouyinRoomInfo
+from liveclip.adapters.douyin.stream import DouyinStreamFetcher
 from liveclip.domain.enums import LiveStatus
 from liveclip.exceptions import (
     DOUYIN_NEED_LOGIN,
@@ -157,47 +158,12 @@ class DouyinLiveChecker:
     @staticmethod
     def _extract_stream_url_from_room(room: dict) -> str | None:
         """从 room 数据中提取流地址。"""
-        stream_data = room.get("stream_url", {})
-        live_core_sdk_data = stream_data.get("live_core_sdk_data", {})
-        pull_data = live_core_sdk_data.get("pull_data", {})
-        options = pull_data.get("options", {})
-
-        # 优先取 FLV 拉流地址
-        qualities = ["origin", "uhd", "hd", "sd", "ld"]
-        for quality in qualities:
-            quality_data = options.get(quality, {})
-            main_url = quality_data.get("main", {})
-            if isinstance(main_url, str) and main_url:
-                return main_url
-            if isinstance(main_url, dict):
-                url = main_url.get("flv", "") or main_url.get("url", "")
-                if url:
-                    return str(url)
-
-        # 回退到 stream_url 中的 flv_pull_url
-        flv_pull = stream_data.get("flv_pull_url", {})
-        if isinstance(flv_pull, dict):
-            for key in ("FULL_HD1", "HD1", "SD1", "SD2"):
-                url = flv_pull.get(key, "")
-                if url:
-                    return str(url)
-
-        return None
+        return DouyinStreamFetcher._extract_stream_from_room(room, "origin")
 
     @staticmethod
     def _extract_stream_url_from_html(html: str) -> str | None:
         """从页面 HTML 中提取流地址。"""
-        # 尝试匹配 flv 拉流地址
-        flv_match = re.search(r'"flv"\s*:\s*"(https?://[^"]+\.flv[^"]*)"', html)
-        if flv_match:
-            return flv_match.group(1).replace("\\u0026", "&")
-
-        # 尝试匹配 pull_url
-        pull_match = re.search(r'"pull_url"\s*:\s*"(https?://[^"]+)"', html)
-        if pull_match:
-            return pull_match.group(1).replace("\\u0026", "&")
-
-        return None
+        return DouyinStreamFetcher._extract_stream_from_html(html)
 
     @staticmethod
     def to_live_status_enum(live_status: DouyinLiveStatus) -> LiveStatus:
