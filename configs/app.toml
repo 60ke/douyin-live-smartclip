@@ -34,6 +34,10 @@ max_concurrent_runs = 1
 heartbeat_interval_seconds = 30
 running_timeout_seconds = 300
 shutdown_timeout_seconds = 10
+resource_cleanup_enabled = true
+resource_retention_hours = 72
+resource_cleanup_interval_seconds = 3600
+resource_cleanup_dry_run = false
 
 [clip_segment]
 target_segment_seconds = 120.0

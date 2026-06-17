@@ -6,7 +6,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
 
-from liveclip.domain.enums import RunStatus, StepName, StepStatus, TriggerType
+from liveclip.domain.enums import ResourceStatus, RunStatus, StepName, StepStatus, TriggerType
 
 
 class RunCreate(BaseModel):
@@ -30,6 +30,9 @@ class RunResponse(BaseModel):
     error_code: str | None
     error_message: str | None
     heartbeat_at: datetime | None
+    resource_status: ResourceStatus = ResourceStatus.AVAILABLE
+    resource_deleted_at: datetime | None = None
+    resource_cleanup_error: str | None = None
     created_at: datetime
 
 

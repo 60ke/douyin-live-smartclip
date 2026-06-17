@@ -68,6 +68,10 @@ class WorkerConfig(BaseModel):
     heartbeat_interval_seconds: int = 30
     running_timeout_seconds: int = 300
     shutdown_timeout_seconds: int = 10
+    resource_cleanup_enabled: bool = True
+    resource_retention_hours: int = 72
+    resource_cleanup_interval_seconds: int = 3600
+    resource_cleanup_dry_run: bool = False
 
 
 class AppSettings(BaseSettings):

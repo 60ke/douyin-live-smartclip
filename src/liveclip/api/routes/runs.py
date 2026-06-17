@@ -28,6 +28,8 @@ def _apply_run_tz(data: dict[str, object]) -> None:
             data[key] = as_china_aware(data[key], reference=reference)  # type: ignore[arg-type]
     if data.get("created_at") is not None:
         data["created_at"] = as_china_aware(data["created_at"])  # type: ignore[arg-type]
+    if data.get("resource_deleted_at") is not None:
+        data["resource_deleted_at"] = as_china_aware(data["resource_deleted_at"])  # type: ignore[arg-type]
 
 
 def _apply_step_tz(step_response: StepResponse) -> StepResponse:

@@ -26,3 +26,6 @@ class RecordingResponse(BaseModel):
     live_started_at: datetime | None = None
     live_finished_at: datetime | None = None
     created_at: datetime
+    resource_status: str = "AVAILABLE"
+    resource_deleted_at: datetime | None = None
+    resource_cleanup_error: str | None = None

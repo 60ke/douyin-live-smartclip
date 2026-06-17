@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from liveclip.api.deps import get_clip_service, get_db_session
 from liveclip.config import load_settings
 from liveclip.db.models import Clip, ClipPlan, LiveRoom, Record, Subtitle, Task, TaskRun
-from liveclip.domain.enums import ClipStatus
+from liveclip.domain.enums import ClipStatus, ResourceStatus
 from liveclip.exceptions import LLMError
 from liveclip.observability import get_logger
 from liveclip.schemas.clip import (
@@ -44,7 +44,8 @@ async def get_clips_by_run(
     plans = await service.get_plans_by_run(run_id)
     if not plans:
         plans = await _backfill_clips_from_disk(session, run_id)
-    response = [ClipPlanResponse.model_validate(p) for p in plans]
+    run = await session.get(TaskRun, run_id)
+    response = [_build_clip_plan_response(p, run) for p in plans]
     await session.commit()
     return response
 
@@ -133,7 +134,9 @@ async def update_clip_cover(
     clip = await session.get(Clip, clip_id)
     if clip is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="切片不存在")
-    if not clip.output_path:
+    if await _clip_resource_cleaned(session, clip):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="切片资源已清理")
+    if not (clip.output_path or clip.final_video_path):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="切片暂无视频文件")
 
     settings = load_settings()
@@ -334,6 +337,15 @@ async def _backfill_clips_from_disk(
     return [fresh_plan]
 
 
+def _build_clip_plan_response(plan: ClipPlan, run: TaskRun | None) -> ClipPlanResponse:
+    data = ClipPlanResponse.model_validate(plan).model_dump()
+    if run is not None:
+        data["resource_status"] = str(run.resource_status)
+        data["resource_deleted_at"] = as_china_aware(run.resource_deleted_at)
+        data["resource_cleanup_error"] = run.resource_cleanup_error
+    return ClipPlanResponse(**data)
+
+
 async def _ensure_plans(session: AsyncSession, run_id: int) -> list[ClipPlan]:
     from sqlalchemy.orm import selectinload
 
@@ -369,6 +381,15 @@ async def _preferred_subtitle_path(session: AsyncSession, run_id: int) -> str | 
     subtitles = list(result.scalars().all())
     subtitle = _prefer_original_subtitle(subtitles)
     return subtitle.file_path if subtitle else None
+
+
+async def _clip_resource_cleaned(session: AsyncSession, clip: Clip) -> bool:
+    result = await session.execute(
+        select(TaskRun.resource_status)
+        .join(ClipPlan, ClipPlan.run_id == TaskRun.id)
+        .where(ClipPlan.id == clip.plan_id)
+    )
+    return result.scalar_one_or_none() == str(ResourceStatus.CLEANED)
 
 
 def _prefer_original_subtitle(subtitles: list[Subtitle]) -> Subtitle | None:
@@ -461,6 +482,9 @@ async def _build_recording_clip_response(
         room_url=room.url,
         task_id=task.id,
         run_status=str(run.run_status),
+        resource_status=str(run.resource_status),
+        resource_deleted_at=as_china_aware(run.resource_deleted_at),
+        resource_cleanup_error=run.resource_cleanup_error,
         live_started_at=as_china_aware(run.started_at),
         live_finished_at=as_china_aware(run.finished_at),
         clip_live_started_at=as_china_aware(_offset_datetime(run.started_at, start_seconds)),

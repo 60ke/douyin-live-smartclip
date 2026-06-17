@@ -30,6 +30,14 @@ class RunStatus(_StrEnum):
     CANCELED = "CANCELED"
 
 
+class ResourceStatus(_StrEnum):
+    """运行产物资源状态。"""
+
+    AVAILABLE = "AVAILABLE"
+    CLEANED = "CLEANED"
+    CLEANUP_FAILED = "CLEANUP_FAILED"
+
+
 class StepStatus(_StrEnum):
     """步骤状态。"""
 

@@ -102,10 +102,13 @@ def create_app(settings: AppSettings | None = None) -> FastAPI:
         logger.info("应用启动完成", database_url=settings.database.url)
         if settings.worker.auto_start_with_api:
             await _start_embedded_worker(app, settings)
+        if settings.worker.resource_cleanup_enabled:
+            await _start_resource_cleanup(app, settings)
 
     @app.on_event("shutdown")
     async def on_shutdown() -> None:
         """应用关闭时停止内置 worker。"""
+        await _stop_resource_cleanup(app, settings)
         await _stop_embedded_worker(app, settings)
 
     return app
@@ -123,6 +126,24 @@ def _ensure_productized_clip_columns(connection: Connection) -> None:
             connection.execute(
                 text("ALTER TABLE records MODIFY COLUMN file_size BIGINT NOT NULL DEFAULT 0")
             )
+
+    if "task_runs" in table_names:
+        existing_run_columns = {column["name"] for column in inspector.get_columns("task_runs")}
+        run_columns = {
+            "resource_status": (
+                "ALTER TABLE task_runs ADD COLUMN resource_status VARCHAR(32) "
+                "NOT NULL DEFAULT 'AVAILABLE'"
+            ),
+            "resource_deleted_at": (
+                "ALTER TABLE task_runs ADD COLUMN resource_deleted_at DATETIME NULL"
+            ),
+            "resource_cleanup_error": (
+                "ALTER TABLE task_runs ADD COLUMN resource_cleanup_error VARCHAR(2048) NULL"
+            ),
+        }
+        for name, ddl in run_columns.items():
+            if name not in existing_run_columns:
+                connection.execute(text(ddl))
 
     if "clip_plans" in table_names:
         existing_plan_columns = {
@@ -222,3 +243,48 @@ async def _stop_embedded_worker(app: FastAPI, settings: AppSettings) -> None:
     app.state.liveclip_worker_runner = None
     app.state.liveclip_worker_task = None
     logger.info("内置 worker 已停止")
+
+
+async def _start_resource_cleanup(app: FastAPI, settings: AppSettings) -> None:
+    """Start the background resource cleanup loop."""
+    if getattr(app.state, "liveclip_resource_cleanup_task", None) is not None:
+        return
+
+    from liveclip.worker.resource_cleanup import ResourceCleanupRunner, ResourceCleanupService
+
+    service = ResourceCleanupService(
+        base_dir=settings.storage.base_dir,
+        retention_hours=settings.worker.resource_retention_hours,
+        dry_run=settings.worker.resource_cleanup_dry_run,
+    )
+    runner = ResourceCleanupRunner(
+        service=service,
+        interval_seconds=settings.worker.resource_cleanup_interval_seconds,
+    )
+    task = asyncio.create_task(runner.run(), name="liveclip-resource-cleanup")
+    app.state.liveclip_resource_cleanup_runner = runner
+    app.state.liveclip_resource_cleanup_task = task
+    logger.info(
+        "资源清理任务已启动",
+        retention_hours=settings.worker.resource_retention_hours,
+        interval_seconds=settings.worker.resource_cleanup_interval_seconds,
+        dry_run=settings.worker.resource_cleanup_dry_run,
+    )
+
+
+async def _stop_resource_cleanup(app: FastAPI, settings: AppSettings) -> None:
+    """Stop the background resource cleanup loop."""
+    runner = getattr(app.state, "liveclip_resource_cleanup_runner", None)
+    task = getattr(app.state, "liveclip_resource_cleanup_task", None)
+    if runner is None or task is None:
+        return
+
+    runner.shutdown()
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
+    app.state.liveclip_resource_cleanup_runner = None
+    app.state.liveclip_resource_cleanup_task = None
+    logger.info("资源清理任务已停止")

@@ -92,6 +92,13 @@ class TaskRun(Base):
     error_code: Mapped[str | None] = mapped_column(String(64), nullable=True, default=None)
     error_message: Mapped[str | None] = mapped_column(String(2048), nullable=True, default=None)
     heartbeat_at: Mapped[datetime | None] = mapped_column(nullable=True, default=None)
+    resource_status: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="AVAILABLE"
+    )
+    resource_deleted_at: Mapped[datetime | None] = mapped_column(nullable=True, default=None)
+    resource_cleanup_error: Mapped[str | None] = mapped_column(
+        String(2048), nullable=True, default=None
+    )
     created_at: Mapped[datetime] = mapped_column(server_default=func.now(), init=False)
 
     task: Mapped[Task] = relationship(back_populates="runs", init=False)

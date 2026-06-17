@@ -59,6 +59,9 @@ class ClipPlanResponse(BaseModel):
     normalized_plan_path: str | None
     validated_plan_path: str | None
     segment_count: int
+    resource_status: str = "AVAILABLE"
+    resource_deleted_at: datetime | None = None
+    resource_cleanup_error: str | None = None
     created_at: datetime
     clips: list[ClipResponse]
 
@@ -77,6 +80,9 @@ class RecordingClipResponse(BaseModel):
     room_url: str
     task_id: int
     run_status: str
+    resource_status: str = "AVAILABLE"
+    resource_deleted_at: datetime | None = None
+    resource_cleanup_error: str | None = None
     live_started_at: datetime | None = None
     live_finished_at: datetime | None = None
     clip_live_started_at: datetime | None = None
