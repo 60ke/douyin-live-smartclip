@@ -104,12 +104,13 @@ def _build_ass(
     font_name: str,
     entries: list[SubtitleEntry],
 ) -> str:
-    font_size = max(24, min(46, int(height * 0.040)))
+    font_size = max(32, min(84, int(height * 0.041)))
     margin_h = max(40, int(width * 0.105))
-    margin_v = max(48, int(height * 0.090))
-    outline = max(2, int(font_size * 0.075))
+    margin_v = max(64, int(height * 0.105))
+    outline = max(3, int(font_size * 0.085))
+    shadow = max(1, int(font_size * 0.018))
     safe_text_width = width - margin_h * 2
-    max_chars_per_line = max(8, min(14, int(safe_text_width / max(26, font_size * 0.74))))
+    max_chars_per_line = max(7, min(11, int(safe_text_width / max(30, font_size * 0.95))))
     lines = [
         "[Script Info]",
         "ScriptType: v4.00+",
@@ -127,7 +128,7 @@ def _build_ass(
         ),
         (
             f"Style: Default,{font_name},{font_size},&H00FFFFFF,&H000000FF,"
-            f"&H00000000,&H00000000,-1,0,0,0,100,100,0,0,1,{outline},0,"
+            f"&H00000000,&H00000000,-1,0,0,0,100,100,0,0,1,{outline},{shadow},"
             f"2,{margin_h},{margin_h},{margin_v},1"
         ),
         "",

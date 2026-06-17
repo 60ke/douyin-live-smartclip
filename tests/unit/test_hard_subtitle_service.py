@@ -4,7 +4,8 @@ import json
 import subprocess
 from pathlib import Path
 
-from liveclip.services.hard_subtitle_service import HardSubtitleRenderer
+from liveclip.domain.models import SubtitleEntry
+from liveclip.services.hard_subtitle_service import HardSubtitleRenderer, _build_ass
 
 
 def test_hard_subtitle_renderer_writes_ass_and_invokes_ffmpeg(tmp_path: Path) -> None:
@@ -56,3 +57,27 @@ def test_hard_subtitle_renderer_writes_ass_and_invokes_ffmpeg(tmp_path: Path) ->
     assert ffmpeg_cmd[0] == "ffmpeg"
     assert "-vf" in ffmpeg_cmd
     assert "ass='" in ffmpeg_cmd[ffmpeg_cmd.index("-vf") + 1]
+
+
+def test_hard_subtitle_style_scales_for_vertical_hd_video() -> None:
+    ass_text = _build_ass(
+        width=1080,
+        height=1920,
+        font_name="Noto Sans CJK SC",
+        entries=[
+            SubtitleEntry(
+                index=1,
+                start=0,
+                end=2,
+                text="这是一句用于验证竖屏大字号换行效果的字幕",
+            )
+        ],
+    )
+
+    style_line = next(line for line in ass_text.splitlines() if line.startswith("Style:"))
+    fields = style_line.split(",")
+    assert int(fields[2]) >= 76
+    assert int(fields[16]) >= 6
+    assert int(fields[17]) >= 1
+    assert int(fields[21]) >= 200
+    assert r"\N" in ass_text
