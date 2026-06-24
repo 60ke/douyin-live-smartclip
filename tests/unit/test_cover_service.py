@@ -29,6 +29,27 @@ def test_render_cover_image_matches_video_resolution(tmp_path: Path) -> None:
         assert image.size == (360, 640)
 
 
+def test_render_cover_uses_first_frame_under_transparent_template_frame(tmp_path: Path) -> None:
+    template = tmp_path / "template.png"
+    frame = tmp_path / "first_frame.png"
+    output = tmp_path / "cover.png"
+    Image.new("RGBA", (360, 640), (255, 0, 0, 255)).save(template)
+    Image.new("RGB", (360, 640), (0, 255, 0)).save(frame)
+
+    renderer = ClipCoverRenderer()
+    renderer.render_cover_image(
+        output_path=output,
+        title="直播间爆款片段",
+        width=360,
+        height=640,
+        source_image_path=template,
+        frame_image_path=frame,
+    )
+
+    with Image.open(output) as image:
+        assert image.getpixel((180, 360)) == (0, 255, 0)
+
+
 def test_render_generates_cover_intro_and_final_video_paths(tmp_path: Path) -> None:
     video = tmp_path / "clip.mp4"
     video.write_bytes(b"fake-video")
@@ -50,7 +71,11 @@ def test_render_generates_cover_intro_and_final_video_paths(tmp_path: Path) -> N
                 ),
                 stderr="",
             )
-        Path(cmd[-1]).write_bytes(b"fake-output")
+        output_path = Path(cmd[-1])
+        if output_path.suffix.lower() in {".jpg", ".jpeg", ".png"}:
+            Image.new("RGB", (320, 180), "#111827").save(output_path)
+        else:
+            output_path.write_bytes(b"fake-output")
         return subprocess.CompletedProcess(args=cmd, returncode=0, stdout="", stderr="")
 
     renderer = ClipCoverRenderer(command_runner=fake_runner)
@@ -78,7 +103,9 @@ def test_render_generates_cover_intro_and_final_video_paths(tmp_path: Path) -> N
     assert commands[0][0] == "ffprobe"
     assert commands[1][0] == "ffmpeg"
     assert commands[2][0] == "ffmpeg"
-    final_cmd = commands[2]
+    first_frame_cmd = commands[1]
+    assert "-frames:v" in first_frame_cmd
+    final_cmd = commands[3]
     assert "-filter_complex" in final_cmd
     assert "concat=n=2:v=1:a=1" in " ".join(final_cmd)
     assert str(result.cover_intro_video_path) in final_cmd
@@ -104,7 +131,11 @@ def test_render_prepends_highlight_intro_when_enabled(tmp_path: Path) -> None:
                 ),
                 stderr="",
             )
-        Path(cmd[-1]).write_bytes(b"fake-output")
+        output_path = Path(cmd[-1])
+        if output_path.suffix.lower() in {".jpg", ".jpeg", ".png"}:
+            Image.new("RGB", (320, 180), "#111827").save(output_path)
+        else:
+            output_path.write_bytes(b"fake-output")
         return subprocess.CompletedProcess(args=cmd, returncode=0, stdout="", stderr="")
 
     renderer = ClipCoverRenderer(command_runner=fake_runner)
@@ -129,11 +160,11 @@ def test_render_prepends_highlight_intro_when_enabled(tmp_path: Path) -> None:
     assert result.duration_seconds == 126.0
     assert result.highlight_video_path.exists()
     assert commands[0][0] == "ffprobe"
-    assert len([cmd for cmd in commands if cmd[0] == "ffmpeg"]) == 3
-    highlight_cmd = commands[2]
+    assert len([cmd for cmd in commands if cmd[0] == "ffmpeg"]) == 4
+    highlight_cmd = commands[3]
     assert "-ss" in highlight_cmd
     assert "115.000" in highlight_cmd
-    final_cmd = commands[3]
+    final_cmd = commands[4]
     assert "-filter_complex" in final_cmd
     assert "concat=n=3:v=1:a=1" in " ".join(final_cmd)
     assert str(result.cover_intro_video_path) in final_cmd

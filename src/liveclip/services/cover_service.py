@@ -85,6 +85,7 @@ class ClipCoverRenderer:
 
         stem = f"clip_{clip_id:06d}"
         cover_image_path = output_dir / f"{stem}_cover.png"
+        first_frame_path = output_dir / f"{stem}_first_frame.jpg"
         cover_intro_video_path = output_dir / f"{stem}_cover_intro.mp4"
         highlight_video_path = output_dir / f"{stem}_highlight_intro.mp4"
         final_video_path = output_dir / f"{stem}_final.mp4"
@@ -95,12 +96,16 @@ class ClipCoverRenderer:
             end_seconds=highlight_end_seconds,
         )
 
+        self._run_ffmpeg(
+            self._first_frame_command(video_path=video_path, output_path=first_frame_path)
+        )
         self.render_cover_image(
             output_path=cover_image_path,
             title=title,
             width=spec.width,
             height=spec.height,
             source_image_path=source_image_path,
+            frame_image_path=first_frame_path,
         )
         self._run_ffmpeg(
             self._cover_intro_command(
@@ -188,63 +193,79 @@ class ClipCoverRenderer:
         width: int,
         height: int,
         source_image_path: Path | None = None,
+        frame_image_path: Path | None = None,
     ) -> Path:
         """Render a PNG cover image matching the target video resolution."""
         if width <= 0 or height <= 0:
             raise ValueError("封面宽高必须大于 0")
 
-        if source_image_path is not None:
-            image = Image.open(source_image_path).convert("RGB")
-            canvas = self._center_crop(image, width, height)
-        else:
-            canvas = self._fallback_background(width, height)
-
-        overlay = Image.new("RGBA", (width, height), (0, 0, 0, 0))
-        draw = ImageDraw.Draw(overlay)
-        draw.rectangle((0, 0, width, height), fill=(0, 0, 0, 82))
+        template = self._load_cover_template(source_image_path)
+        canvas = self._center_crop(template, width, height).convert("RGBA")
+        safe_box = (
+            self._centered_aspect_box(width, height, aspect_ratio=3 / 4)
+            if width >= height
+            else (0, 0, width, height)
+        )
+        poster_width = safe_box[2] - safe_box[0]
+        poster_height = safe_box[3] - safe_box[1]
+        poster = self._load_frame_image(frame_image_path, poster_width, poster_height).convert(
+            "RGBA"
+        )
+        template_overlay = self._center_crop(template, poster_width, poster_height).convert("RGBA")
+        frame_box = self._frame_box(poster_width, poster_height)
+        self._clear_template_frame_area(template_overlay, frame_box=frame_box)
+        poster.alpha_composite(template_overlay)
+        draw = ImageDraw.Draw(poster)
 
         title_text = title.strip() or "精彩片段"
-        font_size = max(34, min(92, int(min(width, height) * 0.078)))
+        font_size = max(26, min(72, int(poster_width * 0.13)))
         font = self._load_font(font_size)
-        small_font = self._load_font(max(22, min(42, int(min(width, height) * 0.034))))
-        max_text_width = int(width * 0.82)
+        max_text_width = int(poster_width * 0.76)
         lines = self._wrap_text(title_text, draw, font, max_text_width, max_lines=2)
 
-        line_spacing = int(font_size * 0.24)
+        line_spacing = int(font_size * 0.18)
         line_heights = [self._text_size(draw, line, font)[1] for line in lines]
-        text_height = sum(line_heights) + line_spacing * max(0, len(lines) - 1)
-        y = int(height * 0.62) - text_height // 2
-        x = int(width * 0.09)
-
-        pad_x = int(width * 0.035)
-        pad_y = int(font_size * 0.34)
-        rect_bottom = y + text_height + pad_y * 2
-        draw.rounded_rectangle(
-            (x - pad_x, y - pad_y, x + max_text_width + pad_x, rect_bottom),
-            radius=max(14, int(width * 0.018)),
-            fill=(0, 0, 0, 126),
-        )
+        y = int(poster_height * 0.11)
+        x = int(poster_width * 0.12)
 
         current_y = y
         for line, line_height in zip(lines, line_heights, strict=True):
-            self._draw_text_with_stroke(draw, (x, current_y), line, font, font_size=font_size)
+            self._draw_title_text(draw, (x, current_y), line, font, font_size=font_size)
             current_y += line_height + line_spacing
 
-        label = "Douyin Live SmartClip"
-        draw.text(
-            (x, max(int(height * 0.10), 24)),
-            label,
-            fill=(40, 210, 255, 255),
-            font=small_font,
+        separator_y = int(poster_height * 0.245)
+        self._draw_dotted_line(
+            draw,
+            x0=int(poster_width * 0.06),
+            x1=int(poster_width * 0.94),
+            y=separator_y,
+            color=(255, 255, 255, 112),
         )
 
-        output = Image.alpha_composite(canvas.convert("RGBA"), overlay).convert("RGB")
+        self._draw_frame_border(poster, frame_box=frame_box)
+        canvas.alpha_composite(poster, dest=(safe_box[0], safe_box[1]))
+        output = canvas.convert("RGB")
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output.save(output_path, format="PNG")
         return output_path
 
     def _run_ffmpeg(self, cmd: list[str]) -> None:
         self._command_runner(cmd)
+
+    def _first_frame_command(self, *, video_path: Path, output_path: Path) -> list[str]:
+        return [
+            self._ffmpeg_binary,
+            "-y",
+            "-ss",
+            "0",
+            "-i",
+            str(video_path),
+            "-frames:v",
+            "1",
+            "-q:v",
+            "2",
+            str(output_path),
+        ]
 
     def _cover_intro_command(
         self,
@@ -378,6 +399,27 @@ class ClipCoverRenderer:
         )
         return cmd
 
+    def _load_cover_template(self, source_image_path: Path | None) -> Image.Image:
+        for path in self._cover_template_candidates(source_image_path):
+            if path.exists():
+                return Image.open(path).convert("RGBA")
+        return self._fallback_background(720, 1280).convert("RGBA")
+
+    def _cover_template_candidates(self, source_image_path: Path | None) -> list[Path]:
+        candidates: list[Path] = []
+        if source_image_path is not None:
+            candidates.append(source_image_path)
+        env_path = os.getenv("LIVECLIP_COVER_TEMPLATE_PATH")
+        if env_path:
+            candidates.append(Path(env_path))
+        candidates.append(
+            Path(__file__).resolve().parents[3]
+            / "assets"
+            / "cover_templates"
+            / "smartclip-blue-frame-template.png"
+        )
+        return candidates
+
     def _load_font(self, size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
         for path in self._font_candidates():
             if path.exists():
@@ -396,6 +438,10 @@ class ClipCoverRenderer:
             candidates.append(self._font_path)
         candidates.extend(
             [
+                Path(__file__).resolve().parents[3]
+                / "assets"
+                / "fonts"
+                / "YOUSHEBIAOTIHEI-2.TTF",
                 Path("/Users/k/Downloads/Noto_Sans_SC/static/NotoSansSC-Bold.ttf"),
                 Path("/Users/k/Downloads/Noto_Sans_SC/static/NotoSansSC-SemiBold.ttf"),
                 Path("/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc"),
@@ -432,6 +478,124 @@ class ClipCoverRenderer:
         return resized.crop((left, top, left + target_width, top + target_height))
 
     @staticmethod
+    def _centered_aspect_box(
+        width: int,
+        height: int,
+        *,
+        aspect_ratio: float,
+    ) -> tuple[int, int, int, int]:
+        if width / height >= aspect_ratio:
+            box_height = height
+            box_width = int(box_height * aspect_ratio + 0.5)
+        else:
+            box_width = width
+            box_height = int(box_width / aspect_ratio + 0.5)
+        left = (width - box_width) // 2
+        top = (height - box_height) // 2
+        return left, top, left + box_width, top + box_height
+
+    @staticmethod
+    def _frame_box(width: int, height: int) -> tuple[int, int, int, int]:
+        left = int(width * 0.062)
+        top = int(height * 0.292)
+        right = int(width * 0.938)
+        bottom = int(height * 0.828)
+        return left, top, right, bottom
+
+    def _paste_frame(
+        self,
+        poster: Image.Image,
+        *,
+        frame_box: tuple[int, int, int, int],
+        frame_image_path: Path | None,
+    ) -> None:
+        left, top, right, bottom = frame_box
+        frame_width = right - left
+        frame_height = bottom - top
+        frame = self._load_frame_image(frame_image_path, frame_width, frame_height).convert("RGBA")
+        radius = max(8, int(frame_width * 0.035))
+        mask = Image.new("L", (frame_width, frame_height), 0)
+        mask_draw = ImageDraw.Draw(mask)
+        mask_draw.rounded_rectangle((0, 0, frame_width, frame_height), radius=radius, fill=255)
+        poster.paste(frame, (left, top), mask)
+
+        border = Image.new("RGBA", poster.size, (0, 0, 0, 0))
+        border_draw = ImageDraw.Draw(border)
+        border_draw.rounded_rectangle(
+            (left, top, right - 1, bottom - 1),
+            radius=radius,
+            outline=(255, 255, 255, 238),
+            width=max(2, int(frame_width * 0.008)),
+        )
+        poster.alpha_composite(border)
+
+    @staticmethod
+    def _clear_template_frame_area(
+        template_overlay: Image.Image,
+        *,
+        frame_box: tuple[int, int, int, int],
+    ) -> None:
+        left, top, right, bottom = frame_box
+        frame_width = right - left
+        radius = max(8, int(frame_width * 0.035))
+        transparent_mask = Image.new("L", template_overlay.size, 0)
+        mask_draw = ImageDraw.Draw(transparent_mask)
+        inset = max(2, int(frame_width * 0.008))
+        mask_draw.rounded_rectangle(
+            (left + inset, top + inset, right - 1 - inset, bottom - 1 - inset),
+            radius=max(1, radius - inset),
+            fill=255,
+        )
+        alpha = template_overlay.getchannel("A")
+        alpha.paste(0, mask=transparent_mask)
+        template_overlay.putalpha(alpha)
+
+    @staticmethod
+    def _draw_frame_border(
+        poster: Image.Image,
+        *,
+        frame_box: tuple[int, int, int, int],
+    ) -> None:
+        left, top, right, bottom = frame_box
+        frame_width = right - left
+        radius = max(8, int(frame_width * 0.035))
+        border = Image.new("RGBA", poster.size, (0, 0, 0, 0))
+        border_draw = ImageDraw.Draw(border)
+        border_draw.rounded_rectangle(
+            (left, top, right - 1, bottom - 1),
+            radius=radius,
+            outline=(255, 255, 255, 238),
+            width=max(2, int(frame_width * 0.008)),
+        )
+        poster.alpha_composite(border)
+
+    def _load_frame_image(
+        self,
+        frame_image_path: Path | None,
+        width: int,
+        height: int,
+    ) -> Image.Image:
+        if frame_image_path is not None and frame_image_path.exists():
+            return self._center_crop(Image.open(frame_image_path).convert("RGB"), width, height)
+        return Image.new("RGB", (width, height), "#050505")
+
+    @staticmethod
+    def _draw_dotted_line(
+        draw: ImageDraw.ImageDraw,
+        *,
+        x0: int,
+        x1: int,
+        y: int,
+        color: tuple[int, int, int, int],
+    ) -> None:
+        dash = 2
+        gap = 3
+        x = x0
+        while x < x1:
+            draw.line((x, y, min(x + dash, x1), y), fill=color, width=1)
+            x += dash + gap
+
+    @staticmethod
     def _wrap_text(
         text: str,
         draw: ImageDraw.ImageDraw,
@@ -461,7 +625,7 @@ class ClipCoverRenderer:
         return lines
 
     @staticmethod
-    def _draw_text_with_stroke(
+    def _draw_title_text(
         draw: ImageDraw.ImageDraw,
         position: tuple[int, int],
         text: str,
@@ -474,8 +638,8 @@ class ClipCoverRenderer:
             text,
             fill=(255, 255, 255, 255),
             font=font,
-            stroke_width=max(2, int(font_size * 0.08)),
-            stroke_fill=(0, 0, 0, 220),
+            stroke_width=max(1, int(font_size * 0.035)),
+            stroke_fill=(38, 155, 255, 190),
         )
 
     @staticmethod
