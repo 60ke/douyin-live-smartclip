@@ -22,6 +22,7 @@ from liveclip.schemas.clip import (
     ClipCoverUpdateRequest,
     ClipPlanResponse,
     ClipResponse,
+    CoverTemplateResponse,
     RecordingClipResponse,
 )
 from liveclip.services import ClipCoverRenderer, ClipService, HighlightIntroSelector
@@ -29,6 +30,32 @@ from liveclip.utils.timezone import as_china_aware
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/v1/clips", tags=["clips"])
+
+
+@router.get("/cover-templates", response_model=list[CoverTemplateResponse])
+async def get_cover_templates() -> list[CoverTemplateResponse]:
+    """List available clip cover templates from storage."""
+    settings = load_settings()
+    template_dir = settings.storage.base_dir.resolve() / "cover_templates"
+    builtin_dir = Path(__file__).resolve().parents[4] / "assets" / "cover_templates"
+    templates: dict[str, CoverTemplateResponse] = {}
+
+    for directory in (template_dir, builtin_dir):
+        if not directory.exists():
+            continue
+        for path in sorted(directory.iterdir()):
+            if not path.is_file() or path.suffix.lower() not in {".jpg", ".jpeg", ".png", ".webp"}:
+                continue
+            media_path = f"cover_templates/{path.name}"
+            templates[path.name] = CoverTemplateResponse(
+                name=_format_cover_template_name(path),
+                path=media_path,
+            )
+
+    return sorted(
+        templates.values(),
+        key=lambda item: (0 if "smartclip-blue-frame-template" in item.path else 1, item.name),
+    )
 
 
 @router.get("/run/{run_id}", response_model=list[ClipPlanResponse])
@@ -458,6 +485,15 @@ def _resolve_clip_video_path(clip: Clip, *, base_dir: Path) -> Path:
         except FileNotFoundError:
             continue
     raise FileNotFoundError(f"切片视频文件不存在: {checked}")
+
+
+def _format_cover_template_name(path: Path) -> str:
+    names = {
+        "smartclip-blue-frame-template": "蓝色首帧模板",
+        "vlog-scene-vertical-cover": "Vlog 实景混剪",
+    }
+    stem = path.stem
+    return names.get(stem, stem.replace("-", " ").replace("_", " ").strip() or path.name)
 
 
 async def _build_recording_clip_response(

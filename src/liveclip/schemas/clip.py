@@ -117,6 +117,13 @@ class RecordingClipResponse(BaseModel):
     created_at: datetime
 
 
+class CoverTemplateResponse(BaseModel):
+    """Available cover template metadata."""
+
+    name: str
+    path: str
+
+
 class ClipCoverUpdateRequest(BaseModel):
     """Request body for editing and rendering a clip cover."""
 
