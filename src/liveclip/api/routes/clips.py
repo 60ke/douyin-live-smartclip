@@ -22,7 +22,6 @@ from liveclip.schemas.clip import (
     ClipCoverUpdateRequest,
     ClipPlanResponse,
     ClipResponse,
-    CoverTemplateResponse,
     RecordingClipResponse,
 )
 from liveclip.services import ClipCoverRenderer, ClipService, HighlightIntroSelector
@@ -30,32 +29,6 @@ from liveclip.utils.timezone import as_china_aware
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/v1/clips", tags=["clips"])
-
-
-@router.get("/cover-templates", response_model=list[CoverTemplateResponse])
-async def get_cover_templates() -> list[CoverTemplateResponse]:
-    """List available clip cover templates from storage."""
-    settings = load_settings()
-    template_dir = settings.storage.base_dir.resolve() / "cover_templates"
-    builtin_dir = Path(__file__).resolve().parents[4] / "assets" / "cover_templates"
-    templates: dict[str, CoverTemplateResponse] = {}
-
-    for directory in (template_dir, builtin_dir):
-        if not directory.exists():
-            continue
-        for path in sorted(directory.iterdir()):
-            if not path.is_file() or path.suffix.lower() not in {".jpg", ".jpeg", ".png", ".webp"}:
-                continue
-            media_path = f"cover_templates/{path.name}"
-            templates[path.name] = CoverTemplateResponse(
-                name=_format_cover_template_name(path),
-                path=media_path,
-            )
-
-    return sorted(
-        templates.values(),
-        key=lambda item: (0 if "smartclip-blue-frame-template" in item.path else 1, item.name),
-    )
 
 
 @router.get("/run/{run_id}", response_model=list[ClipPlanResponse])
@@ -88,7 +61,7 @@ async def get_clips_by_plan(
     if not clips:
         await session.commit()
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="该方案无切片")
-    response = [ClipResponse.model_validate(c) for c in clips]
+    response = [_build_clip_response(c) for c in clips]
     await session.commit()
     return response
 
@@ -161,6 +134,7 @@ async def update_clip_cover(
     clip = await session.get(Clip, clip_id)
     if clip is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="切片不存在")
+    clip_id_value = int(clip.id)
     if await _clip_resource_cleaned(session, clip):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="切片资源已清理")
     if not (clip.output_path or clip.final_video_path):
@@ -179,11 +153,7 @@ async def update_clip_cover(
     highlight_end_seconds = payload.highlight_end_seconds
     try:
         video_path = _resolve_clip_video_path(clip, base_dir=base_dir)
-        source_image_path = (
-            _resolve_existing_path(payload.source_image_path, base_dir=base_dir)
-            if payload.source_image_path
-            else None
-        )
+        source_image_path = None
         if (
             highlight_enabled
             and highlight_start_seconds is None
@@ -208,27 +178,32 @@ async def update_clip_cover(
             llm_highlight_reason = decision.reason
             llm_highlight_confidence = decision.confidence
         result = renderer.render(
-            clip_id=clip.id,
+            clip_id=clip_id_value,
             video_path=video_path,
             output_dir=video_path.parent / "covers",
             title=payload.title,
             source_image_path=source_image_path,
-            cover_duration_seconds=payload.cover_duration_seconds,
+            cover_frame_video_path=_resolve_cover_frame_video_path(video_path),
             highlight_enabled=highlight_enabled,
             highlight_start_seconds=highlight_start_seconds,
             highlight_end_seconds=highlight_end_seconds,
         )
     except LLMError as exc:
-        logger.warning("clip_highlight_llm_failed", clip_id=clip.id, error=str(exc), exc_info=True)
+        logger.warning(
+            "clip_highlight_llm_failed",
+            clip_id=clip_id_value,
+            error=str(exc),
+            exc_info=True,
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"高能片头 LLM 判断失败: {exc.message}",
         ) from exc
     except subprocess.CalledProcessError as exc:
-        stderr = (exc.stderr or "")[:800]
+        stderr = (exc.stderr or "")[-1600:]
         logger.warning(
             "clip_cover_ffmpeg_failed",
-            clip_id=clip.id,
+            clip_id=clip_id_value,
             returncode=exc.returncode,
             stderr=stderr,
             exc_info=True,
@@ -240,7 +215,12 @@ async def update_clip_cover(
     except (FileNotFoundError, ValueError) as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     except Exception as exc:
-        logger.warning("clip_cover_render_failed", clip_id=clip.id, error=str(exc), exc_info=True)
+        logger.warning(
+            "clip_cover_render_failed",
+            clip_id=clip_id_value,
+            error=str(exc),
+            exc_info=True,
+        )
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="封面生成失败") from exc
 
     clip.cover_title = payload.title
@@ -256,7 +236,7 @@ async def update_clip_cover(
     clip.final_video_path = str(result.final_video_path)
     await session.flush()
     await session.refresh(clip)
-    response = ClipResponse.model_validate(clip)
+    response = _build_clip_response(clip, highlight_requested=payload.highlight_enabled)
     await session.commit()
     return response
 
@@ -366,11 +346,28 @@ async def _backfill_clips_from_disk(
 
 def _build_clip_plan_response(plan: ClipPlan, run: TaskRun | None) -> ClipPlanResponse:
     data = ClipPlanResponse.model_validate(plan).model_dump()
+    data["clips"] = [_build_clip_response(clip) for clip in plan.clips]
     if run is not None:
         data["resource_status"] = str(run.resource_status)
         data["resource_deleted_at"] = as_china_aware(run.resource_deleted_at)
         data["resource_cleanup_error"] = run.resource_cleanup_error
     return ClipPlanResponse(**data)
+
+
+def _build_clip_response(
+    clip: Clip,
+    *,
+    highlight_requested: bool | None = None,
+) -> ClipResponse:
+    data = ClipResponse.model_validate(clip).model_dump()
+    status, text = _highlight_status(
+        enabled=clip.highlight_enabled,
+        requested=highlight_requested,
+        reason=clip.highlight_reason,
+    )
+    data["highlight_status"] = status
+    data["highlight_status_text"] = text
+    return ClipResponse(**data)
 
 
 async def _ensure_plans(session: AsyncSession, run_id: int) -> list[ClipPlan]:
@@ -487,13 +484,18 @@ def _resolve_clip_video_path(clip: Clip, *, base_dir: Path) -> Path:
     raise FileNotFoundError(f"切片视频文件不存在: {checked}")
 
 
-def _format_cover_template_name(path: Path) -> str:
-    names = {
-        "smartclip-blue-frame-template": "蓝色首帧模板",
-        "vlog-scene-vertical-cover": "Vlog 实景混剪",
-    }
-    stem = path.stem
-    return names.get(stem, stem.replace("-", " ").replace("_", " ").strip() or path.name)
+def _resolve_cover_frame_video_path(video_path: Path) -> Path:
+    """Prefer the raw non-hard-subtitle clip when re-rendering a cover."""
+    raw_dir = video_path.parent.parent / "raw"
+    candidates = [
+        raw_dir / f"{video_path.stem}_raw{video_path.suffix}",
+        raw_dir / f"{video_path.stem.replace('_hard', '')}_raw{video_path.suffix}",
+        video_path.with_name(f"{video_path.stem}_raw{video_path.suffix}"),
+    ]
+    for candidate in candidates:
+        if candidate.exists() and candidate.is_file():
+            return candidate
+    return video_path
 
 
 async def _build_recording_clip_response(
@@ -506,6 +508,11 @@ async def _build_recording_clip_response(
     subtitle_path: str | None,
 ) -> RecordingClipResponse:
     start_seconds, end_seconds = await _resolve_clip_times(clip, run, room)
+    highlight_status, highlight_status_text = _highlight_status(
+        enabled=clip.highlight_enabled,
+        requested=_highlight_intro_requested_from_config(run.pipeline_config_snapshot_json),
+        reason=clip.highlight_reason,
+    )
     return RecordingClipResponse(
         id=clip.id,
         plan_id=clip.plan_id,
@@ -549,11 +556,43 @@ async def _build_recording_clip_response(
         highlight_reason=clip.highlight_reason,
         highlight_confidence=clip.highlight_confidence,
         highlight_video_path=clip.highlight_video_path,
+        highlight_status=highlight_status,
+        highlight_status_text=highlight_status_text,
         final_video_path=clip.final_video_path,
         playable_video_path=clip.final_video_path or clip.output_path,
         subtitle_mode="none" if clip.final_video_path else "external",
         created_at=as_china_aware(clip.created_at),
     )
+
+
+def _highlight_status(
+    *,
+    enabled: bool,
+    requested: bool | None,
+    reason: str | None,
+) -> tuple[str, str]:
+    if enabled:
+        return "enabled", "已生成"
+    if requested or (reason or "").strip():
+        return "not_found", "未找到"
+    return "disabled", "未开启"
+
+
+def _highlight_intro_requested_from_config(config_json: str | None) -> bool:
+    if not config_json:
+        return False
+    try:
+        config = json.loads(config_json)
+    except json.JSONDecodeError:
+        return False
+    if not isinstance(config, dict):
+        return False
+    highlight = config.get("highlight_intro")
+    if isinstance(highlight, bool):
+        return highlight
+    if isinstance(highlight, dict):
+        return bool(highlight.get("enabled"))
+    return False
 
 
 def _offset_datetime(value: datetime | None, seconds: float | None) -> datetime | None:

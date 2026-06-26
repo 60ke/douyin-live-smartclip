@@ -7,6 +7,7 @@ import json
 import structlog
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from liveclip.db.models import Task, TaskRun, TaskStep
 from liveclip.db.repositories.task_repo import TaskRepository
@@ -80,16 +81,20 @@ class TaskService:
 
     async def create_run(self, task_id: int, trigger_type: TriggerType) -> TaskRun:
         """创建运行，并根据流水线配置生成 PENDING 步骤。"""
-        task = await self._repo.get_by_id(self._session, task_id)
+        task = await self._get_task_with_room(task_id)
         if not task:
             raise ValueError(f"Task id={task_id} 不存在")
 
-        pipeline_config = self._parse_pipeline_config(task.pipeline_config_json)
+        pipeline_config_snapshot_json = (
+            task.room.pipeline_config_json if task.room is not None else None
+        )
+        pipeline_config = self._parse_pipeline_config(pipeline_config_snapshot_json)
 
         run = TaskRun(
             task_id=task_id,
             run_status=str(RunStatus.PENDING),
             trigger_type=str(trigger_type),
+            pipeline_config_snapshot_json=pipeline_config_snapshot_json,
         )
         self._session.add(run)
         await self._session.flush()
@@ -112,6 +117,15 @@ class TaskService:
             steps=[str(s) for s in enabled_steps],
         )
         return run
+
+    async def _get_task_with_room(self, task_id: int) -> Task | None:
+        stmt = (
+            select(Task)
+            .where(Task.id == task_id)
+            .options(selectinload(Task.room))
+        )
+        result = await self._session.execute(stmt)
+        return result.scalar_one_or_none()
 
     async def get_runs(self, task_id: int) -> list[TaskRun]:
         """获取任务的所有运行。"""

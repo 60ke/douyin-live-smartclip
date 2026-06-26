@@ -24,7 +24,6 @@ class ClipPostProcessOptions:
     cover_enabled: bool = False
     cover_image_path: Path | None = None
     cover_title: str | None = None
-    cover_duration_seconds: float = 1.0
     highlight_enabled: bool = False
 
     @property
@@ -169,6 +168,7 @@ class ClipPostProcessService:
             current_video = self._render_cover_and_highlight(
                 item=item,
                 current_video=current_video,
+                cover_frame_video=raw_video,
                 subtitle_path=subtitle_path,
                 final_video=final_video,
                 work_dir=work_dir,
@@ -190,6 +190,7 @@ class ClipPostProcessService:
         *,
         item: dict[str, object],
         current_video: Path,
+        cover_frame_video: Path,
         subtitle_path: Path | None,
         final_video: Path,
         work_dir: Path,
@@ -229,7 +230,7 @@ class ClipPostProcessService:
                 output_dir=work_dir,
                 title=str(options.cover_title or item.get("title") or "精彩片段"),
                 source_image_path=options.cover_image_path,
-                cover_duration_seconds=options.cover_duration_seconds,
+                cover_frame_video_path=cover_frame_video,
                 highlight_enabled=highlight_enabled,
                 highlight_start_seconds=highlight_start,
                 highlight_end_seconds=highlight_end,
@@ -318,7 +319,6 @@ def options_from_pipeline_config(
         cover_enabled=_enabled(cover),
         cover_image_path=cover_image_path,
         cover_title=_optional_str(cover.get("title")),
-        cover_duration_seconds=_optional_float(cover.get("duration_seconds"), default=1.0),
         highlight_enabled=_enabled(highlight),
     )
 
@@ -340,15 +340,6 @@ def _optional_str(value: object) -> str | None:
         return None
     text = str(value).strip()
     return text or None
-
-
-def _optional_float(value: object, *, default: float) -> float:
-    if value is None or value == "":
-        return default
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return default
 
 
 def _optional_path(value: object, *, base_dir: Path | None = None) -> Path | None:

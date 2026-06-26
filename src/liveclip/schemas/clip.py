@@ -41,6 +41,8 @@ class ClipResponse(BaseModel):
     highlight_reason: str | None = None
     highlight_confidence: float | None = None
     highlight_video_path: str | None = None
+    highlight_status: str = "disabled"
+    highlight_status_text: str = "未开启"
     final_video_path: str | None = None
     playable_video_path: str | None = None
     created_at: datetime
@@ -111,25 +113,18 @@ class RecordingClipResponse(BaseModel):
     highlight_reason: str | None = None
     highlight_confidence: float | None = None
     highlight_video_path: str | None = None
+    highlight_status: str = "disabled"
+    highlight_status_text: str = "未开启"
     final_video_path: str | None = None
     playable_video_path: str | None = None
     subtitle_mode: str = "external"
     created_at: datetime
 
 
-class CoverTemplateResponse(BaseModel):
-    """Available cover template metadata."""
-
-    name: str
-    path: str
-
-
 class ClipCoverUpdateRequest(BaseModel):
     """Request body for editing and rendering a clip cover."""
 
     title: str = Field(..., min_length=1, max_length=80)
-    source_image_path: str | None = Field(default=None, max_length=1024)
-    cover_duration_seconds: float = Field(default=1.0, gt=0, le=5)
     highlight_enabled: bool = False
     highlight_start_seconds: float | None = Field(default=None, ge=0)
     highlight_end_seconds: float | None = Field(default=None, gt=0)

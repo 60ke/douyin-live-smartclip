@@ -33,6 +33,7 @@ class RunResponse(BaseModel):
     resource_status: ResourceStatus = ResourceStatus.AVAILABLE
     resource_deleted_at: datetime | None = None
     resource_cleanup_error: str | None = None
+    pipeline_config_snapshot_json: str | None = None
     created_at: datetime
 
 

@@ -147,7 +147,7 @@ def test_parse_llm_response_accepts_single_segment_object() -> None:
     assert segments[0].end_subtitle_index == 5
 
 
-def test_parse_llm_response_defaults_missing_score_like_old_smartclip() -> None:
+def test_parse_llm_response_defaults_missing_score_to_zero() -> None:
     raw = json.dumps(
         {
             "segments": [
@@ -163,7 +163,45 @@ def test_parse_llm_response_defaults_missing_score_like_old_smartclip() -> None:
 
     segment = parse_llm_response(raw)[0]
 
-    assert segment.score == 0.7
+    assert segment.score == 0.0
+
+
+def test_postprocess_segments_filters_default_title_missing_score_segment(tmp_path: Path) -> None:
+    subtitles = [
+        SubtitleEntry(index=87, start=197.93, end=201.085, text="能体，我小白都能上手。"),
+        SubtitleEntry(index=88, start=201.48, end=203.5, text="因为本身我就是没有设计经验的。"),
+        SubtitleEntry(index=89, start=203.5, end=204.5, text="我都可以去用它。"),
+        SubtitleEntry(index=90, start=204.74, end=206.8, text="如果说对于大家来说，你们是做广告。"),
+        SubtitleEntry(index=91, start=206.8, end=208.445, text="做了很久了，有很"),
+        SubtitleEntry(index=92, start=208.97, end=210.53, text="很深的一个功底的，对不对啊？"),
+        SubtitleEntry(index=93, start=210.53, end=213.92, text="你本身就做设计的，那么老板你做出来效果图一定"),
+        SubtitleEntry(index=94, start=213.92, end=215.06, text="比我好，对不对？"),
+        SubtitleEntry(index=95, start=215.16, end=217.2, text="它是可以结合你的项目需求，"),
+        SubtitleEntry(index=96, start=217.24, end=221.44, text="结合你客户的内容，给你自动匹配和生成。"),
+        SubtitleEntry(index=97, start=221.44, end=221.86, text="成的。"),
+        SubtitleEntry(index=98, start=222.02, end=225.0, text="AI智能体做出来的效果图会更加准确。"),
+        SubtitleEntry(index=99, start=225.0, end=227.51, text="果图会更加的准确和稳定进去了。"),
+        SubtitleEntry(index=100, start=227.51, end=228.375, text="然后呢，是不是"),
+        SubtitleEntry(index=101, start=229.04, end=230.355, text="来还没有领到是吧？"),
+    ]
+    raw = json.dumps(
+        {
+            "segments": [
+                {
+                    "start_subtitle_index": 87,
+                    "end_subtitle_index": 101,
+                    "first_sentence": "能体，我小白都能上手，小白都能操作。",
+                    "last_sentence": "来还没有领到是吧？",
+                }
+            ]
+        },
+        ensure_ascii=False,
+    )
+    ctx = _ctx(tmp_path, ClipSegmentConfig(min_score=0.5))
+
+    result = postprocess_segments(parse_llm_response(raw, subtitles), subtitles, ctx)
+
+    assert result == []
 
 
 class _BadRefineLLM:
@@ -371,6 +409,57 @@ def test_postprocess_segments_dedupes_before_score_filter_like_old_project(tmp_p
     result = postprocess_segments([low_score, high_score], subtitles, ctx)
 
     assert [segment.title for segment in result] == ["高分重叠"]
+
+
+def test_postprocess_segments_filters_free_trial_claim_promotions(tmp_path: Path) -> None:
+    subtitles = [
+        SubtitleEntry(index=1, start=0.0, end=20.0, text="现在教大家怎么领取七天免费试用。"),
+        SubtitleEntry(index=2, start=20.0, end=50.0, text="进群以后就可以领取我们的免费体验名额。"),
+        SubtitleEntry(index=3, start=50.0, end=80.0, text="这里演示图片上传以后如何自动生成方案。"),
+        SubtitleEntry(index=4, start=80.0, end=120.0, text="点击生成以后，可以看到完整的三维效果。"),
+    ]
+    promotion = ClipSegment(
+        title="七天免费试用领取教程",
+        start_subtitle_index=1,
+        end_subtitle_index=2,
+        score=0.9,
+    )
+    demo = ClipSegment(
+        title="图片生成方案演示",
+        start_subtitle_index=3,
+        end_subtitle_index=4,
+        score=0.9,
+    )
+    ctx = _ctx(tmp_path, ClipSegmentConfig(min_score=0.5))
+
+    result = postprocess_segments([promotion, demo], subtitles, ctx)
+
+    assert [segment.title for segment in result] == ["图片生成方案演示"]
+
+
+def test_postprocess_segments_filters_claimed_trial_followup_promotions(tmp_path: Path) -> None:
+    subtitles = [
+        SubtitleEntry(index=1, start=0.0, end=20.0, text="来还没有领到是吧？"),
+        SubtitleEntry(index=2, start=20.0, end=45.0, text="我待会儿再教你怎么去领取。"),
+        SubtitleEntry(index=3, start=45.0, end=80.0, text="这里演示上传图片以后如何自动生成方案。"),
+    ]
+    promotion = ClipSegment(
+        title="AI智能体领取答疑",
+        start_subtitle_index=1,
+        end_subtitle_index=2,
+        score=0.95,
+    )
+    demo = ClipSegment(
+        title="图片生成方案演示",
+        start_subtitle_index=3,
+        end_subtitle_index=3,
+        score=0.9,
+    )
+    ctx = _ctx(tmp_path, ClipSegmentConfig(min_score=0.5))
+
+    result = postprocess_segments([promotion, demo], subtitles, ctx)
+
+    assert [segment.title for segment in result] == ["图片生成方案演示"]
 
 
 def test_postprocess_segments_legacy_uses_old_short_clip_threshold(tmp_path: Path) -> None:

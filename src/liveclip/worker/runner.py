@@ -15,13 +15,14 @@ from sqlalchemy.orm import selectinload
 
 from liveclip.db.models import Task, TaskRun
 from liveclip.db.session import get_session_context, init_db
-from liveclip.domain.enums import RunStatus, TaskType, TriggerType
+from liveclip.domain.enums import RunStatus, StepStatus, TaskType, TriggerType
 from liveclip.domain.models import (
     LLMCallConfig,
     PipelineConfig,
     RecordConfig,
+    StepResult,
 )
-from liveclip.exceptions import LIVE_ROOM_NOT_LIVE, RUN_HEARTBEAT_TIMEOUT
+from liveclip.exceptions import LIVE_ROOM_NOT_LIVE
 from liveclip.pipeline.context import PipelineContext
 from liveclip.pipeline.state_machine import get_enabled_steps
 from liveclip.schemas.run import RunCreate
@@ -244,6 +245,16 @@ class WorkerRunner:
                     )
                     continue
 
+                if step_record.step_status == str(StepStatus.SUCCEEDED):
+                    result = self._step_result_from_record(step_record)
+                    ctx.set_step_result(str(step_name), result)
+                    logger.info(
+                        "step_resume_skipped_succeeded",
+                        run_id=run.id,
+                        step_name=str(step_name),
+                    )
+                    continue
+
                 result = await self._executor.execute_step(step_record, ctx, run_service)
 
                 # 更新上下文
@@ -313,8 +324,29 @@ class WorkerRunner:
         finally:
             await session.close()
 
+    @staticmethod
+    def _step_result_from_record(step_record) -> StepResult:
+        metadata: dict[str, object] = {}
+        if step_record.metadata_json:
+            try:
+                parsed = json.loads(step_record.metadata_json)
+                if isinstance(parsed, dict):
+                    metadata = parsed
+            except json.JSONDecodeError:
+                logger.warning(
+                    "step_metadata_json_invalid",
+                    run_id=step_record.run_id,
+                    step_name=step_record.step_name,
+                )
+        return StepResult(
+            success=True,
+            output_path=step_record.output_path,
+            duration_ms=step_record.duration_ms or 0,
+            metadata=metadata,
+        )
+
     async def _handle_stale_runs(self) -> None:
-        """查找心跳超时的运行并标记为 FAILED。"""
+        """查找心跳超时的运行并恢复为 PENDING，等待自动续跑。"""
         session = get_session_context()
         try:
             run_service = RunService(session)
@@ -327,11 +359,7 @@ class WorkerRunner:
                     run_id=run.id,
                     heartbeat_at=str(run.heartbeat_at),
                 )
-                await run_service.mark_failed(
-                    run.id,
-                    error_code=str(RUN_HEARTBEAT_TIMEOUT),
-                    error_message=f"心跳超时（{timeout}秒无更新）",
-                )
+                await run_service.recover_stale_run(run.id, timeout)
                 self._locker.release(run.id)
 
             if stale_runs:
@@ -351,7 +379,9 @@ class WorkerRunner:
             tasks = await self._load_enabled_tasks(session)
             created_count = 0
             for task in tasks:
-                config = self._parse_scheduler_config(task.pipeline_config_json)
+                config = self._parse_scheduler_config(
+                    self._live_room_pipeline_config_json(task)
+                )
                 if await self._has_active_run(session, task.id):
                     continue
 
@@ -382,7 +412,12 @@ class WorkerRunner:
             await session.close()
 
     async def _load_enabled_tasks(self, session: AsyncSession) -> list[Task]:
-        stmt = select(Task).where(Task.enabled.is_(True)).order_by(Task.created_at.asc())
+        stmt = (
+            select(Task)
+            .where(Task.enabled.is_(True))
+            .options(selectinload(Task.room))
+            .order_by(Task.created_at.asc())
+        )
         result = await session.execute(stmt)
         return list(result.scalars().all())
 
@@ -514,11 +549,8 @@ class WorkerRunner:
             task = loaded_run.task
             room = task.room
 
-            pipeline_config = self._parse_pipeline_config(task.pipeline_config_json)
-            room_pipeline_config = self._parse_pipeline_config(room.pipeline_config_json)
-
-            # 合并配置：task 级别覆盖 room 级别
-            merged_config = self._merge_pipeline_config(room_pipeline_config, pipeline_config)
+            live_config_json = self._live_room_pipeline_config_json(task)
+            pipeline_config = self._parse_pipeline_config(live_config_json)
 
             record_config = RecordConfig(
                 max_duration_seconds=room.max_duration_seconds,
@@ -538,7 +570,7 @@ class WorkerRunner:
                 room_id=room.id,
                 task_id=task.id,
                 paths=paths,
-                pipeline_config=merged_config,
+                pipeline_config=pipeline_config,
                 clip_segment_config=self._settings.clip_segment,
                 llm_call_config=LLMCallConfig(),
                 record_config=record_config,
@@ -549,7 +581,7 @@ class WorkerRunner:
             ctx.metadata["room_name"] = room.name
             ctx.metadata["task_type"] = task.task_type
             ctx.metadata["task_mode"] = self._parse_scheduler_config(
-                task.pipeline_config_json
+                live_config_json
             ).get("task_mode")
             douyin_cookie = os.environ.get(self._settings.douyin.cookie_env)
             if douyin_cookie:
@@ -569,6 +601,11 @@ class WorkerRunner:
             except (json.JSONDecodeError, TypeError):
                 logger.warning("pipeline_config_parse_failed", config_json=config_json)
         return PipelineConfig()
+
+    @staticmethod
+    def _live_room_pipeline_config_json(task: Task) -> str | None:
+        """Return the only runtime config source: the current live-room config."""
+        return task.room.pipeline_config_json if task.room is not None else None
 
     @staticmethod
     def _is_loop_context(ctx: PipelineContext) -> bool:

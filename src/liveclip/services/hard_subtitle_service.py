@@ -106,7 +106,7 @@ def _build_ass(
 ) -> str:
     font_size = max(32, min(84, int(height * 0.041)))
     margin_h = max(40, int(width * 0.105))
-    margin_v = max(64, int(height * 0.105))
+    margin_v = max(64, int(height * 0.25))
     outline = max(3, int(font_size * 0.085))
     shadow = max(1, int(font_size * 0.018))
     safe_text_width = width - margin_h * 2

@@ -273,6 +273,28 @@ uv run liveclip clip list <RUN_ID> --json
 
 ---
 
+### AI 封面生成
+
+前端编辑封面时会调用 GPT Image 生成封面图。后端会从切片视频中动态抽取最多 3 张非黑屏关键帧作为参考图，再生成一张 9:16 抖音类短视频封面。
+
+关键规则：
+
+- 竖屏封面最终会被裁剪中央 `3:4` 区域，主标题、人物主体、补充短句等核心内容必须集中在中央安全区。
+- `3:4` 安全区之外只能做背景延展、描边、光效、渐变和装饰，不能放关键信息。
+- 主标题必须严格使用前端传入的封面标题，不允许改字、漏字或乱码。
+- 允许少量随机边角装饰，但标题区域必须干净，不能有彩带、碎片、贴纸或半透明块遮挡文字。
+- AI 生成失败、未配置 GPT Image Key、或抽不到非黑屏参考帧时，接口直接失败，不再使用程序模板兜底生成封面。
+
+需要在 `.env` 中配置 GPT Image Key：
+
+```ini
+GPT_IMAGE_API_KEY=sk-xxxxx
+```
+
+完整通用提示词见 [docs/ai_cover_prompt.md](docs/ai_cover_prompt.md)。
+
+---
+
 ### `liveclip room` — 直播间管理
 
 ```bash
@@ -358,8 +380,11 @@ MYSQL_PASSWORD=liveclip_password
 LLM_API_KEY=sk-xxxxx
 LLM_MODEL=deepseek-ai/DeepSeek-V4-Flash
 LLM_BASE_URL=https://api.siliconflow.cn/v1/chat/completions
+GPT_IMAGE_API_KEY=sk-xxxxx
 DOUYIN_COOKIE=
 ```
+
+注意：部署到 191 时 `.env` 是服务器私有配置，rsync 同步代码必须排除 `.env`。每次重建容器后都要确认容器内 `GPT_IMAGE_API_KEY` 非空，否则 AI 封面生成会直接失败。
 
 确认 `configs/app.toml` 中 MySQL、API 与内置 worker 配置。若修改 `.env` 中的 MySQL 账号密码，需要同步修改这里的连接串：
 

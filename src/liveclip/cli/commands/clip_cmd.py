@@ -592,7 +592,7 @@ def _postprocess_exported_clips(
                     output_dir=work_dir,
                     title=str(cover_title or item.get("title") or "精彩片段"),
                     source_image_path=cover_image,
-                    cover_duration_seconds=1.0,
+                    cover_frame_video_path=raw_video,
                     highlight_enabled=highlight_enabled,
                     highlight_start_seconds=highlight_start,
                     highlight_end_seconds=highlight_end,

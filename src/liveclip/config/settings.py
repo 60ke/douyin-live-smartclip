@@ -53,6 +53,19 @@ class LLMConfig(BaseModel):
     default_profile_name: str = "default"
 
 
+class GPTImageConfig(BaseModel):
+    """GPT image edit configuration for AI cover generation."""
+
+    enabled: bool = True
+    api_key: str = ""
+    api_key_env: str = "GPT_IMAGE_API_KEY"
+    base_url: str = "https://api.apiyi.com"
+    edit_path: str = "/v1/images/edits"
+    model: str = "gpt-image-2"
+    quality: str = "low"
+    timeout_seconds: int = 600
+
+
 class DouyinConfig(BaseModel):
     """Douyin platform integration configuration."""
 
@@ -88,6 +101,7 @@ class AppSettings(BaseSettings):
     ffmpeg: FFmpegConfig = FFmpegConfig()
     funasr: FunASRConfig = FunASRConfig()
     llm: LLMConfig = LLMConfig()
+    gpt_image: GPTImageConfig = GPTImageConfig()
     douyin: DouyinConfig = DouyinConfig()
     worker: WorkerConfig = WorkerConfig()
     clip_segment: ClipSegmentConfig = ClipSegmentConfig()

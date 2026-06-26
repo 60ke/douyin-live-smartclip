@@ -24,6 +24,16 @@ model = "deepseek-ai/DeepSeek-V4-Flash"
 base_url = "https://api.siliconflow.cn/v1/chat/completions"
 default_profile_name = "default"
 
+[gpt_image]
+enabled = true
+api_key = ""
+api_key_env = "GPT_IMAGE_API_KEY"
+base_url = "https://api.apiyi.com"
+edit_path = "/v1/images/edits"
+model = "gpt-image-2"
+quality = "low"
+timeout_seconds = 600
+
 [douyin]
 cookie_env = "DOUYIN_COOKIE"
 

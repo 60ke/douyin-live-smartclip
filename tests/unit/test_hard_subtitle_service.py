@@ -79,5 +79,5 @@ def test_hard_subtitle_style_scales_for_vertical_hd_video() -> None:
     assert int(fields[2]) >= 76
     assert int(fields[16]) >= 6
     assert int(fields[17]) >= 1
-    assert int(fields[21]) >= 200
+    assert int(fields[21]) >= 480
     assert r"\N" in ass_text

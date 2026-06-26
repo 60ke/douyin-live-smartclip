@@ -140,6 +140,9 @@ def _ensure_productized_clip_columns(connection: Connection) -> None:
             "resource_cleanup_error": (
                 "ALTER TABLE task_runs ADD COLUMN resource_cleanup_error VARCHAR(2048) NULL"
             ),
+            "pipeline_config_snapshot_json": (
+                "ALTER TABLE task_runs ADD COLUMN pipeline_config_snapshot_json TEXT NULL"
+            ),
         }
         for name, ddl in run_columns.items():
             if name not in existing_run_columns:

@@ -99,6 +99,9 @@ class TaskRun(Base):
     resource_cleanup_error: Mapped[str | None] = mapped_column(
         String(2048), nullable=True, default=None
     )
+    pipeline_config_snapshot_json: Mapped[str | None] = mapped_column(
+        Text, nullable=True, default=None
+    )
     created_at: Mapped[datetime] = mapped_column(server_default=func.now(), init=False)
 
     task: Mapped[Task] = relationship(back_populates="runs", init=False)

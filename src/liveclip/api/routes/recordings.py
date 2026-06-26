@@ -2,15 +2,17 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from liveclip.api.deps import get_db_session
+from liveclip.api.deps import get_db_session, get_run_service
 from liveclip.db.models import LiveRoom, Record, Subtitle, Task, TaskRun
 from liveclip.observability import get_logger
 from liveclip.schemas.record import RecordResponse
 from liveclip.schemas.recording import RecordingResponse
+from liveclip.schemas.run import RunResponse
+from liveclip.services import RunService
 from liveclip.schemas.subtitle import SubtitleResponse
 from liveclip.utils.timezone import as_china_aware
 
@@ -77,6 +79,26 @@ async def list_room_recordings(
             )
     await session.commit()
     return recordings
+
+
+@router.post("/{recording_id}/slice", response_model=RunResponse)
+async def start_recording_slice(
+    recording_id: int,
+    session: AsyncSession = Depends(get_db_session),
+    service: RunService = Depends(get_run_service),
+) -> RunResponse:
+    """基于已有录制文件继续/重新执行切片流水线。"""
+    try:
+        run = await service.queue_slice_from_recording(recording_id)
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="录制视频不存在") from None
+    except RuntimeError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from None
+    await session.flush()
+    await session.refresh(run)
+    response = RunResponse.model_validate(run)
+    await session.commit()
+    return response
 
 
 @router.get("/run/{run_id}", response_model=list[RecordResponse])

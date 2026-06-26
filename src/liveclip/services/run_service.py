@@ -4,16 +4,16 @@ from __future__ import annotations
 
 import asyncio
 import json
-from datetime import datetime, timedelta
 from pathlib import Path
 
 import structlog
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from liveclip.adapters.ffmpeg import FFmpegConverter
 from liveclip.config import load_settings
-from liveclip.db.models import Clip, ClipPlan, Record, Subtitle, TaskRun, TaskStep
+from liveclip.db.models import Clip, ClipPlan, Record, Subtitle, Task, TaskRun, TaskStep
 from liveclip.db.repositories.run_repo import TaskRunRepository
 from liveclip.domain.enums import RecordSourceType, RunStatus, StepName, StepStatus
 from liveclip.pipeline.state_machine import PIPELINE_STEPS
@@ -72,10 +72,18 @@ class RunService:
 
     async def create(self, body: RunCreate) -> TaskRun:
         """创建一次任务运行及对应步骤记录。"""
+        task = await self._get_task_with_room(body.task_id)
+        if task is None:
+            raise ValueError(f"Task id={body.task_id} 不存在")
+
+        pipeline_config_snapshot_json = (
+            task.room.pipeline_config_json if task.room is not None else None
+        )
         run = TaskRun(
             task_id=body.task_id,
             run_status=str(RunStatus.PENDING),
             trigger_type=str(body.trigger_type),
+            pipeline_config_snapshot_json=pipeline_config_snapshot_json,
         )
         self._session.add(run)
         await self._session.flush()
@@ -93,6 +101,15 @@ class RunService:
         await self._session.refresh(run)
         logger.info("运行已创建", run_id=run.id, task_id=run.task_id)
         return run
+
+    async def _get_task_with_room(self, task_id: int) -> Task | None:
+        stmt = (
+            select(Task)
+            .where(Task.id == task_id)
+            .options(selectinload(Task.room))
+        )
+        result = await self._session.execute(stmt)
+        return result.scalar_one_or_none()
 
     async def pick_next_pending(self) -> TaskRun | None:
         """获取下一个待执行的 PENDING 运行。"""
@@ -174,6 +191,64 @@ class RunService:
     async def cancel_run(self, run_id: int) -> None:
         """取消运行（等同于 mark_canceled）。"""
         await self.mark_canceled(run_id)
+
+    async def queue_retry_from_run(self, run_id: int) -> TaskRun:
+        """将已中断/失败的运行重新放回队列，保留已成功步骤产物。"""
+        run = await self._repo.get_by_id(self._session, run_id)
+        if run is None:
+            raise ValueError(f"TaskRun id={run_id} 不存在")
+        if run.run_status in (str(RunStatus.PENDING), str(RunStatus.RUNNING)):
+            raise RuntimeError("运行正在排队或执行中，不能重复发起")
+        await self._reset_run_for_retry(run)
+        logger.info("运行已重新入队", run_id=run.id)
+        return run
+
+    async def queue_slice_from_recording(self, record_id: int) -> TaskRun:
+        """基于已有录制文件继续执行后续切片流水线。"""
+        record = await self._session.get(Record, record_id)
+        if record is None:
+            raise ValueError(f"Record id={record_id} 不存在")
+        run = await self._repo.get_by_id(self._session, record.run_id)
+        if run is None:
+            raise ValueError(f"TaskRun id={record.run_id} 不存在")
+        if run.resource_status != "AVAILABLE":
+            raise RuntimeError("录制资源已清理，不能重新切片")
+        if run.run_status in (str(RunStatus.PENDING), str(RunStatus.RUNNING)):
+            raise RuntimeError("运行正在排队或执行中，不能重复发起")
+        await self._reset_run_for_retry(run)
+        logger.info("录制视频已发起切片", record_id=record.id, run_id=run.id)
+        return run
+
+    async def recover_stale_run(self, run_id: int, timeout_seconds: int) -> TaskRun:
+        """将心跳超时的运行恢复为 PENDING，等待 worker 自动续跑。"""
+        run = await self._repo.get_by_id(self._session, run_id)
+        if run is None:
+            raise ValueError(f"TaskRun id={run_id} 不存在")
+        await self._reset_run_for_retry(run)
+        logger.warning(
+            "心跳超时运行已恢复入队",
+            run_id=run_id,
+            timeout_seconds=timeout_seconds,
+        )
+        return run
+
+    async def _reset_run_for_retry(self, run: TaskRun) -> None:
+        run.run_status = str(RunStatus.PENDING)
+        run.finished_at = None
+        run.error_code = None
+        run.error_message = None
+        run.heartbeat_at = None
+
+        steps = await self._repo.get_steps_by_run(self._session, run.id)
+        for step in steps:
+            if step.step_status == str(StepStatus.SUCCEEDED):
+                continue
+            step.step_status = str(StepStatus.PENDING)
+            step.started_at = None
+            step.finished_at = None
+            step.error_code = None
+            step.error_message = None
+        await self._session.flush()
 
     async def mark_step_running(self, step_id: int) -> None:
         """将步骤状态设为 RUNNING，并记录 started_at。"""

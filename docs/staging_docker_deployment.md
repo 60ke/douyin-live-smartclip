@@ -34,7 +34,23 @@ unset https_proxy http_proxy all_proxy
 
 ## 常规部署
 
-在服务器执行：
+推荐从本地同步代码到 191 时使用 rsync，但必须排除服务器私有配置和运行数据，尤其不要覆盖远程 `.env`：
+
+```bash
+rsync -az --delete \
+  --exclude '.git' \
+  --exclude '.venv' \
+  --exclude '.env' \
+  --exclude '__pycache__' \
+  --exclude '.pytest_cache' \
+  --exclude 'data' \
+  --exclude 'cache' \
+  --exclude 'logs' \
+  --exclude 'dist' \
+  ./ qc@192.168.2.191:/home/qc/lsk/douyin-live-smartclip/
+```
+
+也可以在服务器执行 git 更新：
 
 ```bash
 ssh qc@192.168.2.191
@@ -68,6 +84,7 @@ MYSQL_PASSWORD=liveclip_password
 LLM_API_KEY=sk-xxxxx
 LLM_MODEL=deepseek-ai/DeepSeek-V4-Flash
 LLM_BASE_URL=https://api.siliconflow.cn/v1/chat/completions
+GPT_IMAGE_API_KEY=sk-xxxxx
 DOUYIN_COOKIE=
 ```
 
@@ -85,6 +102,23 @@ device = "auto"
 ```
 
 如果 `.env` 中修改了 `MYSQL_USER` 或 `MYSQL_PASSWORD`，需要同步修改 `configs/app.toml` 的连接串。
+
+部署约束：
+
+- `.env` 是服务器私有配置，不允许被本地同步覆盖。
+- 每次同步代码或重建容器后，必须检查 `GPT_IMAGE_API_KEY` 是否仍在远程 `.env` 和容器环境中。
+- 如果 `GPT_IMAGE_API_KEY` 丢失，AI 封面生成会直接失败，不再使用程序兜底。
+
+检查命令：
+
+```bash
+cd /home/qc/lsk/douyin-live-smartclip
+awk -F= '/^GPT_IMAGE_API_KEY=/ {print "env_file_key_len=" length($2)}' .env
+docker exec liveclip-server /bin/sh -lc 'printf "container_key_len="; printenv GPT_IMAGE_API_KEY | wc -c'
+curl -sS http://127.0.0.1:9889/health
+```
+
+`env_file_key_len` 和 `container_key_len` 都必须大于 0；如果 `.env` 刚修复过，需要重建或重启 `liveclip` 服务让容器重新加载环境变量。
 
 ## 数据保留
 
