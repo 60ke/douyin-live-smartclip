@@ -285,10 +285,11 @@ uv run liveclip clip list <RUN_ID> --json
 - 允许少量随机边角装饰，但标题区域必须干净，不能有彩带、碎片、贴纸或半透明块遮挡文字。
 - AI 生成失败、未配置 GPT Image Key、或抽不到非黑屏参考帧时，接口直接失败，不再使用程序模板兜底生成封面。
 
-需要在 `.env` 中配置 GPT Image Key：
+需要在 `.env` 中配置 GPT Image 主备 Key。系统会优先调用 `casdao`，失败时自动切到 `apiyi`：
 
 ```ini
-GPT_IMAGE_API_KEY=sk-xxxxx
+GPT_IMAGE_PRIMARY_API_KEY=sk-xxxxx
+GPT_IMAGE_BACKUP_API_KEY=sk-xxxxx
 ```
 
 完整通用提示词见 [docs/ai_cover_prompt.md](docs/ai_cover_prompt.md)。
@@ -380,11 +381,12 @@ MYSQL_PASSWORD=liveclip_password
 LLM_API_KEY=sk-xxxxx
 LLM_MODEL=deepseek-ai/DeepSeek-V4-Flash
 LLM_BASE_URL=https://api.siliconflow.cn/v1/chat/completions
-GPT_IMAGE_API_KEY=sk-xxxxx
+GPT_IMAGE_PRIMARY_API_KEY=sk-xxxxx
+GPT_IMAGE_BACKUP_API_KEY=sk-xxxxx
 DOUYIN_COOKIE=
 ```
 
-注意：部署到 191 时 `.env` 是服务器私有配置，rsync 同步代码必须排除 `.env`。每次重建容器后都要确认容器内 `GPT_IMAGE_API_KEY` 非空，否则 AI 封面生成会直接失败。
+注意：部署到 191 时 `.env` 是服务器私有配置，rsync 同步代码必须排除 `.env`。每次重建容器后都要确认容器内 `GPT_IMAGE_PRIMARY_API_KEY` 和 `GPT_IMAGE_BACKUP_API_KEY` 非空，否则 AI 封面生成会直接失败。
 
 确认 `configs/app.toml` 中 MySQL、API 与内置 worker 配置。若修改 `.env` 中的 MySQL 账号密码，需要同步修改这里的连接串：
 

@@ -28,11 +28,29 @@ default_profile_name = "default"
 enabled = true
 api_key = ""
 api_key_env = "GPT_IMAGE_API_KEY"
-base_url = "https://api.apiyi.com"
+base_url = "https://maasapi.casdao.com"
 edit_path = "/v1/images/edits"
 model = "gpt-image-2"
 quality = "low"
 timeout_seconds = 600
+
+[[gpt_image.providers]]
+name = "casdao"
+api_key = ""
+api_key_env = "GPT_IMAGE_PRIMARY_API_KEY"
+base_url = "https://maasapi.casdao.com"
+edit_path = "/v1/images/edits"
+model = "gpt-image-2"
+quality = "low"
+
+[[gpt_image.providers]]
+name = "apiyi"
+api_key = ""
+api_key_env = "GPT_IMAGE_BACKUP_API_KEY"
+base_url = "https://api.apiyi.com"
+edit_path = "/v1/images/edits"
+model = "gpt-image-2"
+quality = "low"
 
 [douyin]
 cookie_env = "DOUYIN_COOKIE"
