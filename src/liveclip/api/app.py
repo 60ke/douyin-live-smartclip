@@ -14,6 +14,7 @@ from sqlalchemy.engine import Connection
 
 from liveclip.api.routes import (
     clips_router,
+    export_router,
     hotwords_router,
     live_rooms_router,
     media_router,
@@ -58,6 +59,7 @@ def create_app(settings: AppSettings | None = None) -> FastAPI:
     app.include_router(tasks_router)
     app.include_router(runs_router)
     app.include_router(clips_router)
+    app.include_router(export_router)
     app.include_router(media_router)
     app.include_router(recordings_router)
     app.include_router(prompts_router)
