@@ -9,7 +9,7 @@ from liveclip.api.deps import get_db_session
 from liveclip.schemas.export import ExportClipsResponse, ExportCursor
 from liveclip.services.export_service import list_completed_clips
 
-router = APIRouter(prefix="/api/v1/export", tags=["export"])
+router = APIRouter(prefix="/api/v1/media/export", tags=["export"])
 
 
 @router.get("/clips", response_model=ExportClipsResponse)
