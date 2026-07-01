@@ -2,11 +2,20 @@
 
 from __future__ import annotations
 
+from urllib.parse import quote
+
 from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from liveclip.db.models import Clip, ClipPlan, LiveRoom, Task, TaskRun
 from liveclip.schemas.export import ExportClipItem, ExportClipsResponse, ExportCursor
+
+
+def build_media_url(path: str | None) -> str | None:
+    """Build a media URL with a safely encoded path query parameter."""
+    if not path:
+        return None
+    return f"/api/v1/media/?path={quote(path, safe='/')}"
 
 
 async def list_completed_clips(
@@ -71,13 +80,12 @@ async def list_completed_clips(
     items: list[ExportClipItem] = []
     for row in rows:
         playable = row.final_video_path or row.output_path
-        media_url = f"/api/v1/media/?path={playable}" if playable else None
         items.append(
             ExportClipItem(
                 id=row.id,
                 title=row.title,
                 playable_video_path=playable,
-                media_url=media_url,
+                media_url=build_media_url(playable),
                 duration_seconds=row.duration_seconds,
                 room_name=row.room_name,
                 created_at=row.created_at,
