@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+import binascii
 import json
 from datetime import datetime
 
@@ -30,7 +31,7 @@ class ExportCursor(BaseModel):
         try:
             payload = json.loads(base64.urlsafe_b64decode(raw.encode()).decode())
             return cls(created_at=datetime.fromisoformat(payload["t"]), id=payload["i"])
-        except (KeyError, ValueError, OSError) as exc:
+        except (KeyError, ValueError, OSError, TypeError, UnicodeDecodeError, binascii.Error) as exc:
             raise ValueError(f"Invalid cursor: {raw}") from exc
 
 
