@@ -27,6 +27,7 @@ dependencies = [
     "greenlet>=3.0.0",
     "asyncmy>=0.2.10",
     "pillow>=11.0.0",
+    "python-multipart>=0.0.20",
 ]
 
 [dependency-groups]

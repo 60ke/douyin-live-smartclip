@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import re
+from asyncio import to_thread
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.responses import FileResponse, Response
 
 from liveclip.config import load_settings
+from liveclip.services.transcription_service import MediaTranscriptionService
 
 router = APIRouter(prefix="/api/v1/media", tags=["media"])
 
@@ -80,6 +82,51 @@ async def serve_media(
         path=str(file_path),
         media_type=media_type,
         filename=file_path.name,
+    )
+
+
+@router.post("/transcriptions")
+async def create_media_transcription(
+    file: UploadFile = File(..., description="音频或视频文件"),
+    model: str = Form("sensevoice", description="转写模型标识，MVP 使用当前 FunASR 链路"),
+) -> FileResponse:
+    """上传音频或视频并返回处理后的 SRT 字幕文件。"""
+    filename = file.filename or "upload"
+    content = await file.read()
+    if not content:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="上传文件为空",
+        )
+
+    settings = load_settings()
+    service = MediaTranscriptionService(settings)
+
+    try:
+        input_path = await to_thread(
+            service.save_upload,
+            content,
+            filename,
+            file.content_type,
+        )
+        result = await to_thread(
+            service.transcribe_upload,
+            input_path,
+            filename=filename,
+            content_type=file.content_type,
+            model=model,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+
+    output_name = f"{Path(filename).stem or 'subtitles'}.srt"
+    return FileResponse(
+        path=str(result.processed_srt_path),
+        media_type="text/plain; charset=utf-8",
+        filename=output_name,
     )
 
 
