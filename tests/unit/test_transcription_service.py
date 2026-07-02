@@ -3,10 +3,14 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from fastapi.testclient import TestClient
 
+import liveclip.api.routes.media as media_routes
+from liveclip.api.app import create_app
 from liveclip.config.settings import AppSettings, StorageConfig
 from liveclip.services.transcription_service import (
     MediaTranscriptionService,
+    TranscriptionResult,
     build_extract_audio_command,
     classify_media_file,
 )
@@ -113,3 +117,55 @@ def test_save_upload_stores_under_transcription_workspace(tmp_path: Path) -> Non
     assert path.name == "source.wav"
     assert path.read_bytes() == b"fake audio"
     assert path.parent.parent == tmp_path / "transcriptions"
+
+
+def test_media_transcription_endpoint_returns_raw_srt(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    raw_path = tmp_path / "raw.srt"
+    processed_path = tmp_path / "subtitles.srt"
+    raw_path.write_text(
+        "1\n00:00:00,000 --> 00:00:01,000\n短字幕\n\n",
+        encoding="utf-8",
+    )
+    processed_path.write_text(
+        "1\n00:00:00,000 --> 00:00:14,000\n合并后的长字幕\n\n",
+        encoding="utf-8",
+    )
+
+    class FakeService:
+        def __init__(self, settings: AppSettings) -> None:
+            self.settings = settings
+
+        def save_upload(self, content: bytes, filename: str, content_type: str | None = None) -> Path:
+            input_path = tmp_path / "source.wav"
+            input_path.write_bytes(content)
+            return input_path
+
+        def transcribe_upload(
+            self,
+            input_path: Path,
+            *,
+            filename: str,
+            content_type: str | None = None,
+            model: str = "sensevoice",
+        ) -> TranscriptionResult:
+            return TranscriptionResult(
+                raw_srt_path=raw_path,
+                processed_srt_path=processed_path,
+                input_path=input_path,
+                audio_path=input_path,
+                media_kind="audio",
+                model=model,
+            )
+
+    monkeypatch.setattr(media_routes, "MediaTranscriptionService", FakeService)
+    client = TestClient(create_app())
+
+    response = client.post(
+        "/api/v1/media/transcriptions",
+        files={"file": ("sample.wav", b"fake audio", "audio/wav")},
+        data={"model": "sensevoice"},
+    )
+
+    assert response.status_code == 200
+    assert "短字幕" in response.text
+    assert "合并后的长字幕" not in response.text

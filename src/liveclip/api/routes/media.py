@@ -124,7 +124,7 @@ async def create_media_transcription(
 
     output_name = f"{Path(filename).stem or 'subtitles'}.srt"
     return FileResponse(
-        path=str(result.processed_srt_path),
+        path=str(result.raw_srt_path),
         media_type="text/plain; charset=utf-8",
         filename=output_name,
     )
