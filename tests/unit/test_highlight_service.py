@@ -26,6 +26,8 @@ def test_highlight_selector_uses_llm_json(tmp_path: Path) -> None:
     )
     llm = FakeLLMClient(
         '{"enabled": true, "start_seconds": 115, "end_seconds": 120, '
+        '"content_type": "result_showcase", '
+        '"is_complete_sentence": true, "has_clear_value": true, '
         '"reason": "最终效果最吸引人", "confidence": 0.88}'
     )
 
@@ -37,11 +39,13 @@ def test_highlight_selector_uses_llm_json(tmp_path: Path) -> None:
     )
 
     assert decision.enabled is True
-    assert decision.start_seconds == 115
-    assert decision.end_seconds == 120
+    assert decision.start_seconds == 114.85
+    assert decision.end_seconds == 120.25
     assert decision.reason == "最终效果最吸引人"
     assert decision.confidence == 0.88
     assert "这里直接展示最终效果" in llm.prompts[0]
+    assert "result_showcase" in llm.prompts[0]
+    assert "产品核心优势" in llm.prompts[0]
 
 
 def test_highlight_selector_skips_short_clip() -> None:
@@ -58,6 +62,8 @@ def test_highlight_selector_skips_short_clip() -> None:
 def test_highlight_selector_rejects_bad_llm_duration() -> None:
     llm = FakeLLMClient(
         '{"enabled": true, "start_seconds": 20, "end_seconds": 40, '
+        '"content_type": "result_showcase", '
+        '"is_complete_sentence": true, "has_clear_value": true, '
         '"reason": "太长", "confidence": 0.9}'
     )
 
@@ -68,3 +74,57 @@ def test_highlight_selector_rejects_bad_llm_duration() -> None:
             subtitle_path=None,
         )
 
+
+def test_highlight_selector_requires_high_confidence() -> None:
+    llm = FakeLLMClient(
+        '{"enabled": true, "start_seconds": 20, "end_seconds": 25, '
+        '"content_type": "product_advantage", '
+        '"is_complete_sentence": true, "has_clear_value": true, '
+        '"reason": "优势介绍", "confidence": 0.84}'
+    )
+
+    decision = HighlightIntroSelector(llm_client=llm).select(
+        title="优势片段",
+        duration_seconds=80,
+        subtitle_path=None,
+    )
+
+    assert decision.enabled is False
+    assert decision.confidence == 0.84
+    assert "置信度低于 0.85" in (decision.reason or "")
+
+
+def test_highlight_selector_rejects_non_whitelisted_content_type() -> None:
+    llm = FakeLLMClient(
+        '{"enabled": true, "start_seconds": 20, "end_seconds": 25, '
+        '"content_type": "chat_interaction", '
+        '"is_complete_sentence": true, "has_clear_value": true, '
+        '"reason": "互动", "confidence": 0.95}'
+    )
+
+    decision = HighlightIntroSelector(llm_client=llm).select(
+        title="互动片段",
+        duration_seconds=80,
+        subtitle_path=None,
+    )
+
+    assert decision.enabled is False
+    assert decision.reason == "高能片头类型不在白名单内，跳过"
+
+
+def test_highlight_selector_rejects_incomplete_sentence() -> None:
+    llm = FakeLLMClient(
+        '{"enabled": true, "start_seconds": 20, "end_seconds": 25, '
+        '"content_type": "strong_conclusion", '
+        '"is_complete_sentence": false, "has_clear_value": true, '
+        '"reason": "半句话", "confidence": 0.95}'
+    )
+
+    decision = HighlightIntroSelector(llm_client=llm).select(
+        title="半句话片段",
+        duration_seconds=80,
+        subtitle_path=None,
+    )
+
+    assert decision.enabled is False
+    assert decision.reason == "高能片头不是完整句/完整小段，跳过"
