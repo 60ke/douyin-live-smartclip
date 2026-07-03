@@ -15,6 +15,9 @@ from liveclip.domain.models import (
 )
 from liveclip.pipeline.context import PipelineContext
 from liveclip.pipeline.steps.plan_clips import (
+    PROMPT_FULL_CLIP_TEMPLATE,
+    PROMPT_LIVE_STRUCTURE_TEMPLATE,
+    PROMPT_REFINE_TOPIC_TEMPLATE,
     PlanClipsStep,
     _extract_items,
     parse_llm_response,
@@ -53,6 +56,21 @@ def _ctx_with_pipeline(
         llm_call_config=LLMCallConfig(),
         record_config=RecordConfig(),
     )
+
+
+def test_planning_prompts_require_complete_demo_loop() -> None:
+    prompts = [
+        PROMPT_FULL_CLIP_TEMPLATE,
+        PROMPT_LIVE_STRUCTURE_TEMPLATE,
+        PROMPT_REFINE_TOPIC_TEMPLATE,
+    ]
+
+    for prompt in prompts:
+        assert "引入场景/功能 → 操作或生成过程 → 效果图/结果展示 → 简短结论" in prompt
+        assert "被观众互动/答疑/闲聊打断" in prompt
+
+    assert "structure_score 必须 ≤ 0.55，score 必须 ≤ 0.55" in PROMPT_FULL_CLIP_TEMPLATE
+    assert "structure_score 必须 ≤ 0.55，score 必须 ≤ 0.55" in PROMPT_REFINE_TOPIC_TEMPLATE
 
 
 def test_parse_llm_response_skips_rejected_and_bad_structure() -> None:
