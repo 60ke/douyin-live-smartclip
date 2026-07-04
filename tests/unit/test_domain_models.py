@@ -154,7 +154,7 @@ class TestClipSegmentConfig:
         assert config.min_segment_seconds == 90.0
         assert config.max_segment_seconds == 150.0
         assert config.hard_max_segment_seconds == 180.0
-        assert config.min_score == 0.5
+        assert config.min_score == 0.7
         assert config.min_export_segment_seconds == 45.0
         assert config.export_high_score_threshold == 0.8
 

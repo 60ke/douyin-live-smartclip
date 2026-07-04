@@ -206,7 +206,7 @@ def clip_srt(
         "--reuse-plan",
         help="Reuse an existing validated plan instead of re-running LLM analysis",
     ),
-    min_score: float = typer.Option(0.5, "--min-score", help="Minimum segment score"),
+    min_score: float = typer.Option(0.7, "--min-score", help="Minimum segment score"),
     min_seconds: float = typer.Option(90.0, "--min-seconds", help="Planner minimum seconds"),
     target_seconds: float = typer.Option(120.0, "--target-seconds", help="Planner target seconds"),
     max_seconds: float = typer.Option(150.0, "--max-seconds", help="Planner maximum seconds"),

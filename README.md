@@ -91,7 +91,7 @@ uv run liveclip clip srt tests/video/video.srt \
 | `--target-seconds` | 120 | 片段目标时长（秒） |
 | `--max-seconds` | 150 | 片段可接受最长时长（秒） |
 | `--hard-max-seconds` | 180 | 片段硬性上限（秒） |
-| `--min-score` | 0.5 | 最低评分阈值 |
+| `--min-score` | 0.7 | 最低评分阈值 |
 | `--min-export-seconds` | 配置值，默认 45 | 低分片段的最短保留时长（秒） |
 | `--export-high-score-threshold` | 配置值，默认 0.8 | 短片段低于该评分才会被过滤 |
 | `--dump-prompts` | false | 保存 LLM 提示词和响应到输出目录 |
@@ -529,7 +529,7 @@ target_segment_seconds = 120.0
 min_segment_seconds = 90.0
 max_segment_seconds = 150.0
 hard_max_segment_seconds = 180.0
-min_score = 0.5
+min_score = 0.7
 min_export_segment_seconds = 45.0
 export_high_score_threshold = 0.8
 ```

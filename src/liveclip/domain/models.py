@@ -41,7 +41,7 @@ class ClipSegmentConfig(BaseModel):
     min_segment_seconds: float = 90.0
     max_segment_seconds: float = 150.0
     hard_max_segment_seconds: float = 180.0
-    min_score: float = 0.5
+    min_score: float = 0.7
     min_export_segment_seconds: float = 45.0
     export_high_score_threshold: float = 0.8
 
