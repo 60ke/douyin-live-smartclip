@@ -73,6 +73,29 @@ def test_planning_prompts_require_complete_demo_loop() -> None:
     assert "structure_score 必须 ≤ 0.55，score 必须 ≤ 0.55" in PROMPT_REFINE_TOPIC_TEMPLATE
 
 
+def test_planning_prompts_accept_non_showcase_value_types() -> None:
+    prompts = [
+        PROMPT_FULL_CLIP_TEMPLATE,
+        PROMPT_LIVE_STRUCTURE_TEMPLATE,
+        PROMPT_REFINE_TOPIC_TEMPLATE,
+    ]
+
+    for prompt in prompts:
+        assert "product_advantage" in prompt
+        assert "pain_point_solution" in prompt
+        assert "scenario_explanation" in prompt
+        assert "strong_viewpoint" in prompt
+        assert "workflow_tips" in prompt
+        assert "不强制要求画面结果" in prompt
+
+    assert "不要只选择效果展示" in PROMPT_FULL_CLIP_TEMPLATE
+    assert "不要只选效果展示" in PROMPT_LIVE_STRUCTURE_TEMPLATE
+    assert "按 content_type 对应的完整性标准" in PROMPT_FULL_CLIP_TEMPLATE
+    assert "严禁输出分析过程" in PROMPT_LIVE_STRUCTURE_TEMPLATE
+    assert "严禁输出分析过程" in PROMPT_REFINE_TOPIC_TEMPLATE
+    assert "通常应输出 8-15 个候选" in PROMPT_LIVE_STRUCTURE_TEMPLATE
+
+
 def test_parse_llm_response_skips_rejected_and_bad_structure() -> None:
     raw = json.dumps(
         {
@@ -182,6 +205,10 @@ def test_parse_llm_response_defaults_missing_score_to_zero() -> None:
     segment = parse_llm_response(raw)[0]
 
     assert segment.score == 0.0
+
+
+def test_parse_llm_response_accepts_empty_segments_array() -> None:
+    assert parse_llm_response('{"segments": []}') == []
 
 
 def test_postprocess_segments_filters_default_title_missing_score_segment(tmp_path: Path) -> None:

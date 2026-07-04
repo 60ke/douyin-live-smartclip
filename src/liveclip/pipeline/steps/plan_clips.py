@@ -82,7 +82,24 @@ PROMPT_FULL_CLIP_TEMPLATE = """你是直播视频智能剪辑导演。你会收�
 9. 每个成片最多 4 个 parts；每个 part 也必须是自然完整的小段。
 10. 如果整段内容没有足够完整的成片，返回空 segments。
 11. 禁止选择以诱导转化为核心的片段，包括但不限于“免费领取”“免费试用”“免费体验”“七天免费”“进群领取”“关注领取”“领取名额”“免费用领取教程”。这些内容容易被短视频平台判定为诱导，不应产出。
-12. 功能演示、效果图展示、案例展示类片段必须形成完整闭环：引入场景/功能 → 操作或生成过程 → 效果图/结果展示 → 简短结论。只有开始展示、但中间被观众互动/答疑/闲聊打断，且后面没有回到效果图/结果展示/结论的片段，不要输出；如果因上下文必须保留，structure_score 必须 ≤ 0.55，score 必须 ≤ 0.55。
+12. 不要只选择效果展示。高质量切片可以是效果展示，也可以是产品优势、痛点解决、场景讲解、案例说明、强观点或操作技巧。
+
+内容类型与完整性标准：
+- result_showcase: 效果图/最终结果/生成结果展示。必须包含“场景/功能 → 操作或生成过程 → 效果图/结果展示 → 简短结论”。
+- feature_demo: 功能操作演示。必须包含“功能目标 → 关键操作或生成过程 → 结果/完成状态 → 简短结论”。
+- product_advantage: 产品优势/效率收益。必须包含“用户痛点或需求 → 产品能力/差异化优势 → 明确收益或适用场景”。不强制要求画面结果。
+- pain_point_solution: 痛点解决方案。必须包含“痛点 → 解决方式 → 结果/收益/建议”。不强制要求画面结果。
+- scenario_explanation: 使用场景/适用人群。必须包含“目标用户或场景 → 具体问题 → 推荐能力或使用方式”。不强制要求画面结果。
+- case_explanation: 案例讲解。必须包含“案例背景 → 处理方式/设计思路 → 结果或结论”。如果核心依赖画面展示，则必须有结果展示。
+- strong_viewpoint: 强观点/强结论。必须包含“明确观点 → 理由/例子 → 收束结论”，信息密度要高，不能只是口号。
+- workflow_tips: 操作技巧/方法论。必须包含“问题/目标 → 方法步骤 → 注意点/效果”。不强制要求画面结果。
+
+演示闭环规则：
+- 只有 result_showcase、feature_demo、以及核心依赖画面展示的 case_explanation，才强制要求“引入场景/功能 → 操作或生成过程 → 效果图/结果展示 → 简短结论”。
+- 如果这类演示只有开始展示，中间被观众互动/答疑/闲聊打断，且后面没有回到效果图/结果展示/结论，不要输出。
+- 如果可以用 parts 删除中间互动，并保留前后完整演示闭环，可以输出，但 structure_reason 必须说明拼接后为什么自然完整。
+- product_advantage、pain_point_solution、scenario_explanation、strong_viewpoint、workflow_tips 不要求效果图闭环，但必须语义完整、有明确价值和自然收束。
+- 如果有效讲解后面带有“免费试用/关注领取/进群”等转化尾巴，应优先回退边界或用 parts 去掉转化尾巴；只有片段主体就是转化领取时才整段丢弃。
 
 时长约束：
 - 目标时长：{min_segment_seconds} 秒 ～ {target_segment_seconds} 秒。
@@ -92,11 +109,12 @@ PROMPT_FULL_CLIP_TEMPLATE = """你是直播视频智能剪辑导演。你会收�
 
 评分要求：
 - score 是综合分，但完整度权重最高：完整度 70%，内容价值 20%，节奏/信息密度 10%。
-- structure_score 专门表示完整度，必须严格打分。
+- structure_score 专门表示完整度，必须按 content_type 对应的完整性标准严格打分，不要把所有类型都按“效果图展示闭环”评分。
 - score 和 structure_score 都必须使用 0.0-1.0 小数，不要使用 1-10 分制。
 - 如果 structure_score < 0.60，score 通常不得高于 0.55。
 - 低于 0.40 的完整度不要保留。
-- 功能演示/效果图展示/案例展示如果缺少“结果展示”或“简短结论”，或被互动打断后没有恢复展示，必须按不完整处理：优先不保留；保留时 structure_score 和 score 都不得高于 0.55。
+- result_showcase、feature_demo、核心依赖画面展示的 case_explanation 如果缺少“结果展示”或“简短结论”，或被互动打断后没有恢复展示，必须按不完整处理：优先不保留；保留时 structure_score 必须 ≤ 0.55，score 必须 ≤ 0.55。
+- product_advantage、pain_point_solution、scenario_explanation、strong_viewpoint、workflow_tips 如果没有画面结果但有完整观点、理由和收益/结论，可以给正常分数；如果只是空泛夸赞或口号，structure_score 和 score 都不得高于 0.55。
 - 使用 parts 时，structure_reason 必须说明为什么删除中间内容后仍然完整自然。
 
 返回纯 JSON 对象，不要 Markdown。schema：
@@ -105,6 +123,7 @@ PROMPT_FULL_CLIP_TEMPLATE = """你是直播视频智能剪辑导演。你会收�
     {
       "topic": "成片主题",
       "title": "成片标题",
+      "content_type": "product_advantage",
       "start_subtitle_index": 85,
       "end_subtitle_index": 180,
       "parts": [
@@ -122,20 +141,42 @@ PROMPT_FULL_CLIP_TEMPLATE = """你是直播视频智能剪辑导演。你会收�
 如果不需要拼接，可以省略 parts，只返回 start_subtitle_index 和 end_subtitle_index。"""
 
 PROMPT_LIVE_STRUCTURE_TEMPLATE = """你是直播内容结构分析员。你只负责从完整字幕里找“值得进一步精修的候选主题”，不要做最终切片。
+必须直接返回 JSON 对象，第一个字符必须是 {。严禁输出分析过程、解释、推理、Markdown 或任何 JSON 外文本。
 
 任务：
 1. 通读字幕，合并理解被 SRT 切碎的句子。
-2. 找出适合独立传播的候选主题区间：操作演示、功能介绍、场景案例、痛点解决。
+2. 找出适合独立传播的候选主题区间：效果展示、功能演示、产品优势、痛点解决、使用场景、案例讲解、强观点、操作技巧。
 3. 只给粗边界。边界可以略宽，后续精修阶段会负责精确 start/end、parts、时长和评分。
 
 候选主题规则：
 - 一个候选主题必须有明确内容价值，纯互动、闲聊、等待、重复口播不要选。
+- 必须通读全片，按时间顺序覆盖整场直播的高价值主题，不要只输出前半段或最开头的几个片段。
+- 对 1 小时以上直播，通常应输出 8-15 个候选；如果确实不足 8 个，必须是因为其余内容不完整或低价值，而不是为了简短省略。
+- 候选应尽量覆盖不同 content_type，不要全部集中在 result_showcase 或 feature_demo。
 - 禁止选择以诱导转化为核心的候选主题，包括但不限于“免费领取”“免费试用”“免费体验”“七天免费”“进群领取”“关注领取”“领取名额”“免费用领取教程”。
 - 同一大主题下如果有多个小闭环，拆成多个候选主题。
 - 不要把明显无关的多个功能强行合成一个候选主题。
-- 可以包含少量引流或现场互动，但要在 drop_notes 里标注。
+- 可以包含少量引流或现场互动，但要在 drop_notes 里标注，后续精修应优先裁掉。
 - 如果内容主要依赖画面，仍可保留，但在 screen_dependency 填 "有"。
-- 功能演示、效果图展示、案例展示候选必须大致覆盖完整闭环：引入场景/功能 → 操作或生成过程 → 效果图/结果展示 → 简短结论。只有开始展示、但中间被观众互动/答疑/闲聊打断，且后面没有回到效果图/结果展示/结论的候选不要选；如果候选区间可通过 parts 删除互动并恢复完整展示，可进入精修，并在 drop_notes 说明互动打断位置。
+- 不要只选效果展示。产品优势、痛点解决、场景讲解、案例说明、强观点、方法技巧只要语义完整、有明确价值，也应该进入候选。
+
+content_type 可选值：
+- result_showcase: 效果图/最终结果/生成结果展示
+- feature_demo: 功能操作演示
+- product_advantage: 产品优势/效率收益/差异化能力
+- pain_point_solution: 痛点解决方案
+- scenario_explanation: 使用场景/适用人群
+- case_explanation: 案例讲解
+- strong_viewpoint: 强观点/强结论
+- workflow_tips: 操作技巧/方法论
+
+分类型候选标准：
+- result_showcase、feature_demo、核心依赖画面展示的 case_explanation，必须大致覆盖完整闭环：引入场景/功能 → 操作或生成过程 → 效果图/结果展示 → 简短结论。只有开始展示、但中间被观众互动/答疑/闲聊打断，且后面没有回到效果图/结果展示/结论的候选不要选；如果候选区间可通过 parts 删除互动并恢复完整展示，可进入精修，并在 drop_notes 说明互动打断位置。
+- product_advantage 必须大致覆盖：用户痛点或需求 → 产品能力/差异化优势 → 明确收益或适用场景。不强制要求画面结果。
+- pain_point_solution 必须大致覆盖：痛点 → 解决方式 → 结果/收益/建议。不强制要求画面结果。
+- scenario_explanation 必须大致覆盖：目标用户或场景 → 具体问题 → 推荐能力或使用方式。不强制要求画面结果。
+- strong_viewpoint 必须大致覆盖：明确观点 → 理由/例子 → 收束结论。
+- workflow_tips 必须大致覆盖：问题/目标 → 方法步骤 → 注意点/效果。不强制要求画面结果。
 
 粗边界规则：
 - start_subtitle_index/end_subtitle_index 必须来自原始字幕 index。
@@ -149,7 +190,7 @@ PROMPT_LIVE_STRUCTURE_TEMPLATE = """你是直播内容结构分析员。你只�
       "topic": "候选主题",
       "start_subtitle_index": 85,
       "end_subtitle_index": 180,
-      "content_type": "feature_demo",
+      "content_type": "product_advantage",
       "screen_dependency": "无",
       "why_keep": "为什么值得进入精修",
       "drop_notes": "候选区间里可在精修时删除的噪音或跑题内容"
@@ -161,6 +202,7 @@ PROMPT_LIVE_STRUCTURE_TEMPLATE = """你是直播内容结构分析员。你只�
 """
 
 PROMPT_REFINE_TOPIC_TEMPLATE = """你是直播切片边界精修员。你会收到一个候选主题，以及该主题前后上下文字幕。
+必须直接返回 JSON 对象，第一个字符必须是 {。严禁输出分析过程、解释、推理、Markdown 或任何 JSON 外文本。
 
 任务：输出最终可切的视频片段。你可以：
 1. 保留为一条连续片段；
@@ -170,6 +212,7 @@ PROMPT_REFINE_TOPIC_TEMPLATE = """你是直播切片边界精修员。你会收�
 硬规则：
 - 完整性是底线。禁止在句子中间、话题中间、步骤中间截断。
 - 禁止输出以诱导转化为核心的片段，包括但不限于“免费领取”“免费试用”“免费体验”“七天免费”“进群领取”“关注领取”“领取名额”“免费用领取教程”。如果候选主题主要是这类内容，返回空 segments。
+- 如果有效讲解后面带有“免费试用/关注领取/进群”等转化尾巴，应优先回退边界或用 parts 去掉转化尾巴；只有片段主体就是转化领取时才整段丢弃。
 - 标点不是边界依据，语义收束才是边界依据。即使最后一句有句号，只要它是新话题开头、承接句、列举开头或功能引入句，也必须回退。
 - 结尾优先落在强结束点：。！？；.!?;
 - 如果没有强标点，结尾必须是口语完整收束，例如“好吧”“能理解吧”“点击就可以生成了”。
@@ -177,8 +220,34 @@ PROMPT_REFINE_TOPIC_TEMPLATE = """你是直播切片边界精修员。你会收�
 - 禁止把下一主题开头纳入当前结尾：如“家人们，然后像我们这边XX的功能”“接下来我们看XX”“下面给大家讲第二点”。遇到这种情况应回退到上一句完整收束处。
 - 如果上一句是当前主题的口语收束，即使 ASR 以逗号结尾，也可以作为 acceptable 边界，例如“这个是我们的文化墙，平面转3D效果图啊，”。
 - 选择 end 后必须检查后续 3-5 条字幕：如果后续是在补完当前句子或展示当前步骤结果，必须纳入；如果进入新主题/互动/转化，才可以结束。
-- 功能演示、效果图展示、案例展示必须形成完整闭环：引入场景/功能 → 操作或生成过程 → 效果图/结果展示 → 简短结论。只有开始展示、但中间被观众互动/答疑/闲聊打断，且后面没有回到效果图/结果展示/结论的片段，必须返回空 segments；如果可以用 parts 删除互动并保留前后完整演示，则必须在 structure_reason 说明拼接后为什么仍完整。
-- 如果演示类片段缺少结果展示或简短结论，但你仍认为有少量价值，structure_score 必须 ≤ 0.55，score 必须 ≤ 0.55。
+
+content_type 必须从以下类型中选择：
+- result_showcase: 效果图/最终结果/生成结果展示
+- feature_demo: 功能操作演示
+- product_advantage: 产品优势/效率收益/差异化能力
+- pain_point_solution: 痛点解决方案
+- scenario_explanation: 使用场景/适用人群
+- case_explanation: 案例讲解
+- strong_viewpoint: 强观点/强结论
+- workflow_tips: 操作技巧/方法论
+
+分类型完整性标准：
+- result_showcase: 必须包含“场景/功能 → 操作或生成过程 → 效果图/结果展示 → 简短结论”。
+- feature_demo: 必须包含“功能目标 → 关键操作或生成过程 → 结果/完成状态 → 简短结论”。
+- product_advantage: 必须包含“用户痛点或需求 → 产品能力/差异化优势 → 明确收益或适用场景”。不强制要求画面结果。
+- pain_point_solution: 必须包含“痛点 → 解决方式 → 结果/收益/建议”。不强制要求画面结果。
+- scenario_explanation: 必须包含“目标用户或场景 → 具体问题 → 推荐能力或使用方式”。不强制要求画面结果。
+- case_explanation: 必须包含“案例背景 → 处理方式/设计思路 → 结果或结论”。如果核心依赖画面展示，则必须有结果展示。
+- strong_viewpoint: 必须包含“明确观点 → 理由/例子 → 收束结论”，信息密度要高，不能只是口号。
+- workflow_tips: 必须包含“问题/目标 → 方法步骤 → 注意点/效果”。不强制要求画面结果。
+
+演示闭环规则：
+- 只有 result_showcase、feature_demo、以及核心依赖画面展示的 case_explanation，才强制要求“引入场景/功能 → 操作或生成过程 → 效果图/结果展示 → 简短结论”。
+- 如果这类演示只有开始展示，中间被观众互动/答疑/闲聊打断，且后面没有回到效果图/结果展示/结论，必须返回空 segments。
+- 如果可以用 parts 删除互动并保留前后完整演示，则必须在 structure_reason 说明拼接后为什么仍完整。
+- product_advantage、pain_point_solution、scenario_explanation、strong_viewpoint、workflow_tips 不要求效果图闭环，但必须语义完整、有明确价值和自然收束。
+- result_showcase、feature_demo、核心依赖画面展示的 case_explanation 如果缺少结果展示或简短结论，但你仍认为有少量价值，structure_score 必须 ≤ 0.55，score 必须 ≤ 0.55。
+- product_advantage、pain_point_solution、scenario_explanation、strong_viewpoint、workflow_tips 如果只是空泛夸赞、泛泛口号或没有明确收益/结论，structure_score 和 score 都不得高于 0.55。
 
 时长策略：
 - 理想区间：{min_segment_seconds}-{target_segment_seconds} 秒。
@@ -188,6 +257,7 @@ PROMPT_REFINE_TOPIC_TEMPLATE = """你是直播切片边界精修员。你会收�
 - 宁可换一个更短的完整片段，也不能截断当前片段。
 
 输出字段要求：
+- content_type: 必须填写上面的枚举之一，并按该类型的完整性标准评分。
 - duration_status: normal / too_short / over_limit / unavoidable_overrun
 - first_sentence: 片段第一句或第一条字幕文本
 - last_sentence: 片段最后一句或最后一条字幕文本
@@ -337,13 +407,11 @@ def parse_llm_response(
         )
 
     if isinstance(data, dict):
-        segments_data = (
-            data.get("segments")
-            or data.get("clips")
-            or data.get("candidates")
-            or data.get("items")
-            or data.get("data")
-        )
+        segments_data = None
+        for key in ("segments", "clips", "candidates", "items", "data"):
+            if key in data:
+                segments_data = data.get(key)
+                break
         if segments_data is None and _looks_like_segment_object(data):
             segments_data = [data]
     else:
