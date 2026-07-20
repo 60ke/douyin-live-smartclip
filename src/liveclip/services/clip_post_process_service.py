@@ -229,43 +229,52 @@ class ClipPostProcessService:
                 highlight_reason = f"高能片头选择失败，已跳过: {exc}"
                 highlight_confidence = 0.0
 
+        cover_error: Exception | None = None
         if options.cover_enabled:
-            cover_result = media_renderer.render(
-                clip_id=int(item.get("index", 0)) + 1,
-                video_path=current_video,
-                output_dir=work_dir,
-                title=str(options.cover_title or item.get("title") or "精彩片段"),
-                source_image_path=options.cover_image_path,
-                cover_frame_video_path=cover_frame_video,
-                highlight_enabled=highlight_enabled,
-                highlight_start_seconds=highlight_start,
-                highlight_end_seconds=highlight_end,
-            )
-            _replace_file(cover_result.final_video_path, final_video)
+            try:
+                cover_result = media_renderer.render(
+                    clip_id=int(item.get("index", 0)) + 1,
+                    video_path=current_video,
+                    output_dir=work_dir,
+                    title=str(options.cover_title or item.get("title") or "精彩片段"),
+                    source_image_path=options.cover_image_path,
+                    cover_frame_video_path=cover_frame_video,
+                    highlight_enabled=highlight_enabled,
+                    highlight_start_seconds=highlight_start,
+                    highlight_end_seconds=highlight_end,
+                )
+                _replace_file(cover_result.final_video_path, final_video)
 
-            item["cover_title"] = str(options.cover_title or item.get("title") or "精彩片段")
-            item["cover_source_image_path"] = (
-                str(options.cover_image_path) if options.cover_image_path else None
-            )
-            item["cover_image_path"] = str(cover_result.cover_image_path)
-            item["cover_intro_video_path"] = str(cover_result.cover_intro_video_path)
-            item["highlight_enabled"] = cover_result.highlight_enabled
-            item["highlight_start_seconds"] = cover_result.highlight_start_seconds
-            item["highlight_end_seconds"] = cover_result.highlight_end_seconds
-            item["highlight_reason"] = highlight_reason or cover_result.highlight_reason
-            item["highlight_confidence"] = (
-                highlight_confidence
-                if highlight_confidence is not None
-                else cover_result.highlight_confidence
-            )
-            item["highlight_video_path"] = (
-                str(cover_result.highlight_video_path)
-                if cover_result.highlight_video_path
-                else None
-            )
-            item["final_video_path"] = str(final_video)
-            item["final_duration_seconds"] = cover_result.duration_seconds
-            return final_video
+                item["cover_title"] = str(options.cover_title or item.get("title") or "精彩片段")
+                item["cover_source_image_path"] = (
+                    str(options.cover_image_path) if options.cover_image_path else None
+                )
+                item["cover_image_path"] = str(cover_result.cover_image_path)
+                item["cover_intro_video_path"] = str(cover_result.cover_intro_video_path)
+                item["highlight_enabled"] = cover_result.highlight_enabled
+                item["highlight_start_seconds"] = cover_result.highlight_start_seconds
+                item["highlight_end_seconds"] = cover_result.highlight_end_seconds
+                item["highlight_reason"] = highlight_reason or cover_result.highlight_reason
+                item["highlight_confidence"] = (
+                    highlight_confidence
+                    if highlight_confidence is not None
+                    else cover_result.highlight_confidence
+                )
+                item["highlight_video_path"] = (
+                    str(cover_result.highlight_video_path)
+                    if cover_result.highlight_video_path
+                    else None
+                )
+                item["final_video_path"] = str(final_video)
+                item["final_duration_seconds"] = cover_result.duration_seconds
+                return final_video
+            except Exception as exc:  # noqa: BLE001 - highlight can still be generated alone.
+                cover_error = exc
+                logger.warning(
+                    "clip_cover_failed_continue_highlight",
+                    title=item.get("title"),
+                    error=str(exc),
+                )
 
         if highlight_enabled and highlight_start is not None and highlight_end is not None:
             highlight_video = work_dir / f"{current_video.stem}_highlight_intro.mp4"
@@ -295,7 +304,13 @@ class ClipPostProcessService:
             item["final_duration_seconds"] = spec.duration_seconds + max(
                 0.0, highlight_end - highlight_start
             )
+            if cover_error is not None:
+                item["cover_error"] = str(cover_error)
+                item["postprocess_fallback"] = "highlight_without_cover"
             return final_video
+
+        if cover_error is not None:
+            raise cover_error
 
         shutil.copy2(current_video, final_video)
         item["highlight_enabled"] = False
