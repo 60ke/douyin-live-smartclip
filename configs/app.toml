@@ -35,6 +35,15 @@ quality = "low"
 timeout_seconds = 600
 
 [[gpt_image.providers]]
+name = "uuapi"
+api_key = ""
+api_key_env = "GPT_IMAGE_UUAPI_API_KEY"
+base_url = "https://uuapi.net"
+edit_path = "/v1/images/generations"
+model = "gpt-image-2"
+quality = "low"
+
+[[gpt_image.providers]]
 name = "casdao"
 api_key = ""
 api_key_env = "GPT_IMAGE_PRIMARY_API_KEY"

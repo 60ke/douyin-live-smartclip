@@ -98,9 +98,15 @@ class ClipPostProcessService:
             except Exception as exc:  # noqa: BLE001 - keep other clips available.
                 item["postprocess_status"] = "failed"
                 item["postprocess_error"] = str(exc)
-                raw_clip_path = item.get("raw_clip_path")
-                if isinstance(raw_clip_path, str) and raw_clip_path:
-                    item["clip_path"] = raw_clip_path
+                fallback_video = _preserve_best_effort_video(item, final_dir)
+                if fallback_video is not None:
+                    item["clip_path"] = str(fallback_video)
+                    item["final_video_path"] = str(fallback_video)
+                    item["postprocess_fallback"] = "hard_subtitle"
+                else:
+                    raw_clip_path = item.get("raw_clip_path")
+                    if isinstance(raw_clip_path, str) and raw_clip_path:
+                        item["clip_path"] = raw_clip_path
                 logger.warning("clip_postprocess_failed", title=item.get("title"), error=str(exc))
                 updated_clips.append(item)
 
@@ -373,3 +379,18 @@ def _replace_file(source: Path, target: Path) -> None:
     if target.exists():
         target.unlink()
     shutil.move(str(source), str(target))
+
+
+def _preserve_best_effort_video(item: dict[str, object], final_dir: Path) -> Path | None:
+    """Keep the most advanced completed video when a later post-process step fails."""
+    hard_video = _optional_path(item.get("hard_subtitle_video_path"))
+    if hard_video is None or not hard_video.exists():
+        return None
+
+    stem = hard_video.stem
+    if stem.endswith("_hard"):
+        stem = stem[:-5]
+    final_video = final_dir / f"{stem}.mp4"
+    final_video.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(hard_video, final_video)
+    return final_video
