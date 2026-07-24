@@ -7,6 +7,7 @@ from liveclip.config.settings import (
     FFmpegConfig,
     FunASRConfig,
     LLMConfig,
+    MediaAsrConfig,
     ServerConfig,
     StorageConfig,
     WorkerConfig,
@@ -23,6 +24,7 @@ class TestAppSettings:
         assert isinstance(settings.storage, StorageConfig)
         assert isinstance(settings.ffmpeg, FFmpegConfig)
         assert isinstance(settings.funasr, FunASRConfig)
+        assert isinstance(settings.media_asr, MediaAsrConfig)
         assert isinstance(settings.llm, LLMConfig)
         assert isinstance(settings.douyin, DouyinConfig)
         assert isinstance(settings.worker, WorkerConfig)
@@ -71,6 +73,17 @@ class TestFunASRConfig:
     def test_defaults(self) -> None:
         config = FunASRConfig()
         assert config.device == "auto"
+
+
+class TestMediaAsrConfig:
+    """Tests for MediaAsrConfig defaults."""
+
+    def test_defaults(self) -> None:
+        config = MediaAsrConfig()
+        assert config.enabled is False
+        assert config.base_url == "http://127.0.0.1:9900"
+        assert config.poll_interval_seconds == 2.0
+        assert config.poll_timeout_seconds == 3600.0
 
 
 class TestLLMConfig:

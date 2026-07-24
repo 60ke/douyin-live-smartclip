@@ -44,6 +44,17 @@ class FunASRConfig(BaseModel):
     model_dir: Path = Path("./cache/models/funasr")
 
 
+class MediaAsrConfig(BaseModel):
+    """Shared media-asr HTTP client configuration."""
+
+    enabled: bool = False
+    base_url: str = "http://127.0.0.1:9900"
+    api_key: str = ""
+    api_key_env: str = "MEDIA_ASR_API_KEY"
+    poll_interval_seconds: float = 2.0
+    poll_timeout_seconds: float = 3600.0
+
+
 class LLMConfig(BaseModel):
     """LLM integration configuration."""
 
@@ -113,6 +124,7 @@ class AppSettings(BaseSettings):
     storage: StorageConfig = StorageConfig()
     ffmpeg: FFmpegConfig = FFmpegConfig()
     funasr: FunASRConfig = FunASRConfig()
+    media_asr: MediaAsrConfig = MediaAsrConfig()
     llm: LLMConfig = LLMConfig()
     gpt_image: GPTImageConfig = GPTImageConfig()
     douyin: DouyinConfig = DouyinConfig()

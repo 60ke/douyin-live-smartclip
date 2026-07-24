@@ -7,7 +7,8 @@ import uuid
 from dataclasses import dataclass
 from pathlib import Path
 
-from liveclip.adapters.funasr import FunASRTranscriber, HotwordManager
+from liveclip.adapters.funasr import HotwordManager
+from liveclip.adapters.media_asr.factory import Transcriber, build_transcriber
 from liveclip.config.settings import AppSettings
 from liveclip.exceptions import FFMPEG_CONVERT_FAILED, FFmpegError
 from liveclip.observability import get_logger
@@ -75,14 +76,11 @@ class MediaTranscriptionService:
     def __init__(
         self,
         settings: AppSettings,
-        transcriber: FunASRTranscriber | None = None,
+        transcriber: Transcriber | None = None,
         hotword_manager: HotwordManager | None = None,
     ) -> None:
         self._settings = settings
-        self._transcriber = transcriber or FunASRTranscriber(
-            device=settings.funasr.device,
-            model_dir=str(settings.funasr.model_dir),
-        )
+        self._transcriber = transcriber or build_transcriber(settings)
         self._hotword_manager = hotword_manager or HotwordManager()
 
     def transcribe_upload(

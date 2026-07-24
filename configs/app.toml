@@ -19,6 +19,14 @@ crf = 18
 device = "auto"
 model_dir = "./cache/models/funasr"
 
+[media_asr]
+enabled = false
+base_url = "http://127.0.0.1:9900"
+api_key = ""
+api_key_env = "MEDIA_ASR_API_KEY"
+poll_interval_seconds = 2.0
+poll_timeout_seconds = 3600.0
+
 [llm]
 model = "deepseek-ai/DeepSeek-V4-Flash"
 base_url = "https://api.siliconflow.cn/v1/chat/completions"

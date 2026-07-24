@@ -5,6 +5,7 @@ from __future__ import annotations
 import time
 
 from liveclip.adapters.funasr import FunASRTranscriber, HotwordManager
+from liveclip.adapters.media_asr.factory import Transcriber
 from liveclip.domain.enums import StepName
 from liveclip.domain.models import StepResult
 from liveclip.exceptions import FUNASR_TRANSCRIBE_FAILED, FunASRError
@@ -24,7 +25,7 @@ class TranscribeStep(BaseStep):
 
     def __init__(
         self,
-        transcriber: FunASRTranscriber | None = None,
+        transcriber: Transcriber | None = None,
         hotword_manager: HotwordManager | None = None,
     ) -> None:
         self._transcriber = transcriber or FunASRTranscriber()

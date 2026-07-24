@@ -15,8 +15,8 @@ from liveclip.adapters.douyin.stream import DouyinStreamFetcher
 from liveclip.adapters.ffmpeg.clip import FFmpegClipper
 from liveclip.adapters.ffmpeg.convert import FFmpegConverter
 from liveclip.adapters.funasr.hotwords import HotwordManager
-from liveclip.adapters.funasr.transcriber import FunASRTranscriber
 from liveclip.adapters.llm.client import LLMClient
+from liveclip.adapters.media_asr.factory import build_transcriber
 from liveclip.domain.enums import StepName
 from liveclip.domain.models import StepResult
 from liveclip.exceptions import LIVE_ROOM_NOT_LIVE, WorkerError
@@ -216,10 +216,7 @@ class StepExecutor:
 
         if step_name == StepName.TRANSCRIBE:
             return TranscribeStep(
-                transcriber=FunASRTranscriber(
-                    device=settings.funasr.device,
-                    model_dir=str(settings.funasr.model_dir),
-                ),
+                transcriber=build_transcriber(settings),
                 hotword_manager=HotwordManager(),
             )
 
