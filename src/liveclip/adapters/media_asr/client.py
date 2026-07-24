@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import time
-import uuid
 from collections.abc import Callable
 from pathlib import Path
 
@@ -49,14 +48,13 @@ class MediaAsrClient:
         media_path: Path,
         *,
         hotwords: list[str] | None = None,
-        idempotency_key: str | None = None,
+        idempotency_key: str | None = None,  # unused; kept for call-site compatibility
     ) -> str:
         """Submit an ASR job and return engine_job_id."""
-        key = idempotency_key or f"liveclip-asr-{uuid.uuid4()}"
+        del idempotency_key  # engine no longer accepts/uses idempotency
         options = json.dumps({"output_mode": "srt"}, ensure_ascii=False)
         data: dict[str, str] = {
             "type": "asr",
-            "idempotency_key": key,
             "options": options,
         }
         if hotwords:
