@@ -84,4 +84,5 @@ class ExportClipsResponse(BaseModel):
 
     items: list[ExportClipItem]
     next_cursor: str | None = None
+    resume_cursor: str | None = None
     count: int
