@@ -32,6 +32,7 @@ async def list_completed_clips(
     """返回已完成的切片，按 created_at ASC / id ASC 游标分页。
 
     room_ids 为空时保持原有行为，返回全部直播间；非空时只返回指定直播间。
+    resume_cursor 始终指向本页最后一条，供轮询客户端保存增量位置。
     """
     selected_room_ids = normalize_room_ids(room_ids)
     base_conditions = [
@@ -100,13 +101,19 @@ async def list_completed_clips(
             )
         )
 
-    next_cursor: str | None = None
-    if has_more and rows:
+    resume_cursor: str | None = None
+    if rows:
         last = rows[-1]
-        next_cursor = ExportCursor(
+        resume_cursor = ExportCursor(
             created_at=last.created_at,
             id=last.id,
             room_ids=selected_room_ids,
         ).encode()
 
-    return ExportClipsResponse(items=items, next_cursor=next_cursor, count=len(items))
+    next_cursor = resume_cursor if has_more else None
+    return ExportClipsResponse(
+        items=items,
+        next_cursor=next_cursor,
+        resume_cursor=resume_cursor,
+        count=len(items),
+    )
