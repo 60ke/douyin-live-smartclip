@@ -1,0 +1,20 @@
+name: Export API Check
+
+on:
+  push:
+    branches:
+      - feature/live-room-export-client-api
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Install dependencies
+        run: uv sync
+      - name: Compile export modules
+        run: uv run python -m compileall src/liveclip/api/routes/export.py src/liveclip/schemas/export.py src/liveclip/services/export_service.py
+      - name: Run export schema tests
+        run: uv run pytest tests/unit/test_export_schema.py
