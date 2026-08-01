@@ -27,16 +27,13 @@ def build_media_url(path: str | None) -> str | None:
 
 async def list_export_rooms(session: AsyncSession) -> ExportRoomsResponse:
     """返回可供外部同步客户端选择的直播间列表。"""
-    stmt = (
-        select(
-            LiveRoom.id,
-            LiveRoom.name,
-            LiveRoom.url,
-            LiveRoom.platform,
-            LiveRoom.enabled,
-        )
-        .order_by(LiveRoom.name.asc(), LiveRoom.id.asc())
-    )
+    stmt = select(
+        LiveRoom.id,
+        LiveRoom.name,
+        LiveRoom.url,
+        LiveRoom.platform,
+        LiveRoom.enabled,
+    ).order_by(LiveRoom.name.asc(), LiveRoom.id.asc())
     result = await session.execute(stmt)
     items = [
         ExportRoomItem(
@@ -107,7 +104,7 @@ async def list_completed_clips(
         .join(LiveRoom, Task.room_id == LiveRoom.id)
         .where(and_(*base_conditions))
         .order_by(Clip.created_at.asc(), Clip.id.asc())
-        .limit(limit + 1)  # 多取一条判断是否有下一页
+        .limit(limit + 1)
     )
 
     result = await session.execute(stmt)
@@ -133,13 +130,19 @@ async def list_completed_clips(
             )
         )
 
-    next_cursor: str | None = None
-    if has_more and rows:
+    checkpoint_cursor: str | None = None
+    if rows:
         last = rows[-1]
-        next_cursor = ExportCursor(
+        checkpoint_cursor = ExportCursor(
             created_at=last.created_at,
             id=last.id,
             room_ids=normalized_room_ids or None,
         ).encode()
 
-    return ExportClipsResponse(items=items, next_cursor=next_cursor, count=len(items))
+    next_cursor = checkpoint_cursor if has_more else None
+    return ExportClipsResponse(
+        items=items,
+        next_cursor=next_cursor,
+        checkpoint_cursor=checkpoint_cursor,
+        count=len(items),
+    )
