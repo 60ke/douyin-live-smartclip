@@ -1,14 +1,21 @@
-"""导出服务 — 为外部同步消费端提供已完成切片的游标分页查询。"""
+"""导出服务 — 为外部同步消费端提供直播间和已完成切片查询。"""
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from urllib.parse import quote
 
 from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from liveclip.db.models import Clip, ClipPlan, LiveRoom, Task, TaskRun
-from liveclip.schemas.export import ExportClipItem, ExportClipsResponse, ExportCursor
+from liveclip.schemas.export import (
+    ExportClipItem,
+    ExportClipsResponse,
+    ExportCursor,
+    ExportRoomItem,
+    ExportRoomsResponse,
+)
 
 
 def build_media_url(path: str | None) -> str | None:
@@ -18,10 +25,34 @@ def build_media_url(path: str | None) -> str | None:
     return f"/api/v1/media/?path={quote(path, safe='/')}"
 
 
+async def list_export_rooms(session: AsyncSession) -> ExportRoomsResponse:
+    """返回可供外部同步客户端选择的直播间列表。"""
+    stmt = select(
+        LiveRoom.id,
+        LiveRoom.name,
+        LiveRoom.url,
+        LiveRoom.platform,
+        LiveRoom.enabled,
+    ).order_by(LiveRoom.name.asc(), LiveRoom.id.asc())
+    result = await session.execute(stmt)
+    items = [
+        ExportRoomItem(
+            id=row.id,
+            name=row.name,
+            url=row.url,
+            platform=row.platform,
+            enabled=row.enabled,
+        )
+        for row in result.all()
+    ]
+    return ExportRoomsResponse(items=items, count=len(items))
+
+
 async def list_completed_clips(
     session: AsyncSession,
     cursor: ExportCursor | None = None,
     limit: int = 50,
+    room_ids: Sequence[int] | None = None,
 ) -> ExportClipsResponse:
     """返回已完成的切片，按 created_at ASC / id ASC 游标分页。
 
@@ -29,8 +60,10 @@ async def list_completed_clips(
     - status = 'COMPLETED'
     - 至少有一个可播放视频（output_path 或 final_video_path 非空）
     - 所属 run 的资源未被清理（resource_status != 'CLEANED'）
+    - 指定 room_ids 时，仅返回这些直播间的切片
     - playable_video_path 优先取 final_video_path（后处理成品），无则取 output_path（原始导出）
     """
+    normalized_room_ids = tuple(sorted(set(room_ids or ())))
     base_conditions = [
         Clip.status == "COMPLETED",
         TaskRun.resource_status != "CLEANED",
@@ -39,6 +72,9 @@ async def list_completed_clips(
             Clip.final_video_path.is_not(None),
         ),
     ]
+
+    if normalized_room_ids:
+        base_conditions.append(LiveRoom.id.in_(normalized_room_ids))
 
     if cursor is not None:
         base_conditions.append(
@@ -59,6 +95,7 @@ async def list_completed_clips(
             Clip.final_video_path,
             Clip.duration_seconds,
             Clip.created_at,
+            LiveRoom.id.label("room_id"),
             LiveRoom.name.label("room_name"),
         )
         .join(ClipPlan, Clip.plan_id == ClipPlan.id)
@@ -67,7 +104,7 @@ async def list_completed_clips(
         .join(LiveRoom, Task.room_id == LiveRoom.id)
         .where(and_(*base_conditions))
         .order_by(Clip.created_at.asc(), Clip.id.asc())
-        .limit(limit + 1)  # 多取一条判断是否有下一页
+        .limit(limit + 1)
     )
 
     result = await session.execute(stmt)
@@ -87,14 +124,25 @@ async def list_completed_clips(
                 playable_video_path=playable,
                 media_url=build_media_url(playable),
                 duration_seconds=row.duration_seconds,
+                room_id=row.room_id,
                 room_name=row.room_name,
                 created_at=row.created_at,
             )
         )
 
-    next_cursor: str | None = None
-    if has_more and rows:
+    checkpoint_cursor: str | None = None
+    if rows:
         last = rows[-1]
-        next_cursor = ExportCursor(created_at=last.created_at, id=last.id).encode()
+        checkpoint_cursor = ExportCursor(
+            created_at=last.created_at,
+            id=last.id,
+            room_ids=normalized_room_ids or None,
+        ).encode()
 
-    return ExportClipsResponse(items=items, next_cursor=next_cursor, count=len(items))
+    next_cursor = checkpoint_cursor if has_more else None
+    return ExportClipsResponse(
+        items=items,
+        next_cursor=next_cursor,
+        checkpoint_cursor=checkpoint_cursor,
+        count=len(items),
+    )
